@@ -165,7 +165,7 @@ def build_siamese(input_dim, num_layers, hidden_dim, dropout_rate, activation):
     s_l = shared(inp_l)
     s_r = shared(inp_r)
 
-    diff = tf.keras.layers.Subtract(name="diff")([s_r, s_l])  # (right - left)
+    diff = tf.keras.layers.Subtract(name="diff")([s_l, s_r])  # (left - right)
     out = Dense(1, activation="sigmoid", name="pred")(diff)
 
     return Model(inputs=[inp_l, inp_r], outputs=out, name="siamese_ranker")
