@@ -23,10 +23,10 @@
     "restore_best": true
   },
   "metrics": {
-    "best_epoch": 97,
-    "best_val_loss": 4.2212624506987595e-09,
+    "best_epoch": 75,
+    "best_val_loss": 5.613101983215074e-09,
     "best_val_accuracy_at_best_epoch": 1.0,
-    "last_train_loss": 6.987764811228203e-10,
-    "seconds": 924.73
+    "last_train_loss": 7.464760476416643e-10,
+    "seconds": 1367.47
   }
 }
