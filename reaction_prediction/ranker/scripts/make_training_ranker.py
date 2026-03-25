@@ -14,6 +14,7 @@ from reaction_prediction.atom.utils import *
 from reaction_prediction.ranker.modules.simple_orbpair_object import SimpleOrbPairObject as SOO
 from reaction_prediction.atom.modules.simple_atom_object import SimpleAtomObject as SAO
 from rpCHEM.Common.Util import smi_to_unique_smi_fast, smi_to_unique_smi_map
+from functools import partial
 
 # Negative sample generators
 negative_generators = [
@@ -31,8 +32,7 @@ sample_dict = dict(zip(negative_generators, [5 for _ in negative_generators]))
 ALLID_FILE = None
 
 
-def process_reaction(row):
-    global ALLID_FILE, MAXORBS
+def process_reaction(row, ALLID_FILE, MAXORBS):
     try:
         rxn, arrow, source, sink = row
     except Exception:
@@ -92,8 +92,8 @@ def main(args):
     
     start_time = time.time()
     counter = 0  
-
-    for res in pool.imap(process_reaction, reader):
+    process_reaction_partial = partial(process_reaction, ALLID_FILE=ALLID_FILE, MAXORBS=MAXORBS)
+    for res in pool.imap(process_reaction_partial, reader):
         counter += 1
         if counter % 100 == 0:
             elapsed = time.time() - start_time
