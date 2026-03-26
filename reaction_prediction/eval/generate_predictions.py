@@ -5,11 +5,10 @@ Evaluate the ranker given trained Keras models.
 
 Outputs in --output:
   - preds.csv           top-k predictions (ascending score)
-  - preds_reversed.csv  top-k predictions (descending score)
   - bad.csv             rows that failed, with exception info
 
-For every input row, exactly one output line is written to preds.csv and preds_reversed.csv.
-On failures, a BLANK line is written to both prediction files, and a row is appended to bad.csv.
+For every input row, exactly one output line is written to preds_ascending.csv.
+On failures, a BLANK line is written to preds_ascending.csv, and a row is appended to bad.csv.
 """
 
 import os, sys, csv, h5py, traceback, argparse
@@ -97,7 +96,6 @@ def run_eval(
         ranker_model = siamese_model
 
     preds_path     = os.path.join(out_dir, "preds_ascending.csv")
-    preds_rev_path = os.path.join(out_dir, "preds_descending.csv")
     bad_path       = os.path.join(out_dir, "bad.csv")
 
     num_rows = 0
@@ -105,19 +103,17 @@ def run_eval(
 
     # Open outputs
     with open(preds_path, "w", newline='') as preds_f, \
-         open(preds_rev_path, "w", newline='') as preds_rev_f, \
          open(bad_path, "w", newline='') as bad_f, \
          open(input_file, "r") as in_f:
 
         preds_writer     = csv.writer(preds_f)
-        preds_rev_writer = csv.writer(preds_rev_f)
         bad_writer       = csv.writer(bad_f)
         bad_writer.writerow(["index", "reaction_line", "error_type", "error_message"])  # header
 
         reader = csv.reader(in_f)
         for i, row in enumerate(reader):
             num_rows += 1
-            predictions_asc, predictions_desc = [], []
+            predictions_asc = []
 
             try:
                 # Expect the full reaction string in the first column
@@ -172,22 +168,17 @@ def run_eval(
                 ops_score_dict = dict(zip(valid_ops, [float(j) for j in ops_scores]))
 
                 ops_sorted_asc  = sorted(ops_score_dict.items(), key=lambda x: x[1])           # low→high
-                ops_sorted_desc = sorted(ops_score_dict.items(), key=lambda x: x[1], reverse=True)  # high→low
 
                 for op, score in ops_sorted_asc[:top_k]:
                     predictions_asc.append(f"{op.reactionSmiles} {op.arrowCodes}")
-                for op, score in ops_sorted_desc[:top_k]:
-                    predictions_desc.append(f"{op.reactionSmiles} {op.arrowCodes}")
 
                 # Write predictions
                 preds_writer.writerow(predictions_asc)
-                preds_rev_writer.writerow(predictions_desc)
 
             except Exception as e:
                 # On any failure: write BLANK lines to preds & preds_reversed,
                 # and log the failure to bad.csv with error info
                 preds_writer.writerow([])        # blank line
-                preds_rev_writer.writerow([])    # blank line
                 num_bad += 1
 
                 err_type = type(e).__name__
@@ -205,7 +196,6 @@ def run_eval(
     print("Failures (bad.csv): ", num_bad)
     print("Outputs in:", out_dir)
     print(" -", preds_path)
-    print(" -", preds_rev_path)
     print(" -", bad_path)
 
 # ---------------------------

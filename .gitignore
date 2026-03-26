@@ -2,3 +2,4 @@
 *.hdf5
 *.h5
 *.vscode
+*_allids.json
