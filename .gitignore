@@ -3,3 +3,5 @@
 *.h5
 *.vscode
 *_allids.json
+.DS_Store
+oe_license.txt-2026
