@@ -4,6 +4,7 @@ from torch_geometric.loader import DataLoader
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+from torchmetrics.classification import BinaryAUROC
 
 def calculate_pos_neg_sum(data_objs):
     pos_sum = 0
@@ -44,6 +45,7 @@ def main():
 
     train_losses = []
     val_losses = []
+    val_AUROC = []
 
     for epoch in range(hparams["epochs"]):
         training_loop = tqdm(train_data_loader, total=len(train_data_loader), leave=True)
@@ -53,25 +55,30 @@ def main():
         running_train_loss = run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams)
         train_losses.append(running_train_loss/len(train_data_loader))
         
-        
+        val_auroc_metric = BinaryAUROC(pos_label=1)
         val_loop = tqdm(val_data_loader, total=len(val_data_loader), leave=True)
         # tracking as list since i need average incrementally in run_val_loop
         running_val_loss = []
         # core loop for validation dataset
-        running_val_loss = run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams)
+        running_val_loss = run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_auroc_metric)
+        # update history lists
         val_losses.append(sum(running_val_loss)/len(running_val_loss))
+        val_AUROC.append(val_auroc_metric.compute())
 
 
-def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams):
+def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_auroc_metric):
     # switch to .eval() mode 
     gps_model.eval()
     with torch.no_grad():
         for batch in val_loop:
             val_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr)
+
             running_val_loss.append(bce(val_outputs, torch.reshape(batch.y, (val_outputs.shape[0], 1))).item())
+            val_auroc_metric(val_outputs, torch.reshape(batch.y, (val_outputs.shape[0], 1)))
 
             val_loop.set_description(f"Train Epoch [{epoch+1}/{hparams['epochs']}]")
             val_loop.set_postfix(val_loss=sum(running_val_loss)/len(running_val_loss))
+    return running_val_loss
 
 def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams):
     # switch to .train() mode
