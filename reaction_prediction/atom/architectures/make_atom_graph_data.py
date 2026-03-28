@@ -6,6 +6,7 @@ from rdkit import Chem
 import torch
 from torch_geometric.transforms import AddRandomWalkPE
 from torch.nn.functional import one_hot
+import argparse
 
 class CSVToGraphs:
     def __init__(self, atom_type):
@@ -34,12 +35,11 @@ class CSVToGraphs:
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
             for i, row in enumerate(reader):
-                print(i)
                 new_data_objs, num_node_features = self.reaction_to_graph_data(row)
                 all_data_objs.extend(new_data_objs)
-                if i > 100:
-                    break
-        print(len(all_data_objs))
+                if i % 100 == 0:
+                    print("%d number of reactions are processed..."%i, flush=True)
+                    print("%d graph data objects are created"%len(all_data_objs), flush=True)
 
         return all_data_objs, num_node_features
     
@@ -154,7 +154,7 @@ class CSVToGraphs:
         edge_attr = torch.zeros((edge_index.shape[1], len(edge_attr_names)))
         
         torch.zeros((len(edge_index), len(edge_attr_names)))
-        for edge in range(len(edge_index)):
+        for edge in range(edge_index.shape[1]):
             for attr_index, attr_func in enumerate(edge_attr_names):
                 # using the func tuples to add edge attrs to the edges
                 method = getattr(mol.GetBondBetweenAtoms(edge_index[0][edge].item(), edge_index[1][edge].item()), attr_func)
@@ -188,19 +188,32 @@ class CSVToGraphs:
         
         return y
 
-if __name__ == "__main__":
-    mol_to_graph = CSVToGraphs("source")
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Save graph data from reaction data for use in training Graph Transformers."
+    )
+    parser.add_argument(
+        "--input", "-i",
+        required=True,
+        help="Path to the input file containing reaction data",
+    )
+    parser.add_argument(
+        "--output", "-o",
+        required=True,
+        help="Path to save the graph data",
+    )
+    parser.add_argument(
+        "--atomtype", "-a",
+        required=True,
+        help="'source' or 'sink' to build graph data with source atoms or sink atoms",
+    )
+    return parser.parse_args()
 
-    csv_path = "data/mc_train_fold0/reformatted/val.txt"
-    data_objs = mol_to_graph.process_csv(csv_path)
-    print(data_objs[0])
-    print(len(data_objs))
-    count_zeros = 0
-    count_ones = 0
-    for i, obj in enumerate(data_objs):
-        if obj.y.sum() == 0:
-            count_zeros += 1
-        if obj.y.sum() == 1:
-            count_ones += 1
-    print(count_zeros)
-    print(count_ones)
+def main(mol_to_graph, file_input, file_output):
+    data_objs, num_node_features = mol_to_graph.process_csv(file_input)
+    torch.save(data_objs, file_output)
+    print(f"The graph data objects have been successfuly saved, each containing {num_node_features} features per atom.")
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(CSVToGraphs(args.atomtype), args.input, args.output)
