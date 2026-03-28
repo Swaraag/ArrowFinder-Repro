@@ -3,6 +3,7 @@
     "hidden_dim": 64,
     "dropout": 0.0,
     "lr": 1e-3,
+    "weight_decay": 0.01,
     "epochs": 100,
     "batch_size": 64,
     "patience": 20,

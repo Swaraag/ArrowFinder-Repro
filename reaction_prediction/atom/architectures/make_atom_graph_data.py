@@ -24,6 +24,7 @@ class CSVToGraphs:
             Chem.rdchem.HybridizationType.SP3,
             Chem.rdchem.HybridizationType.OTHER
         ]
+        self._num_node_features = 27
 
         self.ATOM_TYPES = [6, 8, 7, 1, 9, 16, 17, 35, 14, 15, 5, 53, 11, 3, 13]
         
@@ -35,13 +36,13 @@ class CSVToGraphs:
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
             for i, row in enumerate(reader):
-                new_data_objs, num_node_features = self.reaction_to_graph_data(row)
+                new_data_objs = self.reaction_to_graph_data(row)
                 all_data_objs.extend(new_data_objs)
                 if i % 100 == 0:
                     print("%d number of reactions are processed..."%i, flush=True)
                     print("%d graph data objects are created"%len(all_data_objs), flush=True)
 
-        return all_data_objs, num_node_features
+        return all_data_objs, self._num_node_features
     
     def reaction_to_graph_data(self, row):
         """
@@ -66,7 +67,7 @@ class CSVToGraphs:
             for smi in atom_smis:
                 mol = mol_with_hydrogens(smi)
                 atoms = mol.GetAtoms()
-                x, num_node_features = self.create_x(atoms)
+                x = self.create_x(atoms)
                 
                 edge_index = self.create_edge_index(mol)
                 # skip molecules entirely if they have no edges, bc not much for GT to reason about
@@ -87,7 +88,7 @@ class CSVToGraphs:
                 transform = AddRandomWalkPE(walk_length=20, attr_name="random_walk")
                 data_objs.append(transform(data))
                 # positional encoding data stored in data.random_walk
-        return data_objs, num_node_features
+        return data_objs
     
     def create_x(self, atoms):
         node_features = ["GetDegree", "GetFormalCharge", 
@@ -110,7 +111,7 @@ class CSVToGraphs:
 
             final_feature_arr = torch.cat([feature_array, atom_type_ohe, atom_hybrid_ohe], dim=0)
             x[atom_idx] = final_feature_arr
-        return x, total_feature_dim
+        return x
     
     def create_edge_index(self, mol):
         # empty adjacency matrix for edge index.
@@ -167,7 +168,10 @@ class CSVToGraphs:
         y = torch.zeros((len(x)))
 
         # special_mol stores either all sources, or all sinks
-        special_mol = mol_with_hydrogens(s_atom)
+        try:
+            special_mol = mol_with_hydrogens(s_atom)
+        except:
+            return y
         for special_atom in special_mol.GetAtoms():
             if special_atom.GetAtomMapNum()==1:
                 special_atom_idx = special_atom.GetIdx()
