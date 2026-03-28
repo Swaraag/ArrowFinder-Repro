@@ -59,6 +59,9 @@ class CSVToGraphs:
                 edge_attr = self.create_edge_attr(edge_index, mol)
 
                 y = self.create_y(mol, s_atom)
+                # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
+                if y.sum() == 0:
+                    continue
                 
                 data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
                 data.validate(raise_on_error=True)
@@ -135,12 +138,26 @@ class CSVToGraphs:
         x = mol.GetAtoms()
         y = torch.zeros((len(x)))
 
-        # s_atom stores either all sources, or all sink
-        s_atom = mol_with_hydrogens(s_atom)
-        for special_atom in s_atom.GetAtoms():
-            for mol_atom_idx, mol_atom in enumerate(x):
-                if mol_atom.GetIdx() == special_atom.GetIdx():
-                    y[mol_atom_idx] = 1
+        # special_mol stores either all sources, or all sinks
+        special_mol = mol_with_hydrogens(s_atom)
+        for special_atom in special_mol.GetAtoms():
+            if special_atom.GetAtomMapNum()==1:
+                special_atom_idx = special_atom.GetIdx()
+                # running Chem.Mol to get a copy of it to not change the original
+                mol_copy = Chem.Mol(special_mol)
+                for a in mol_copy.GetAtoms():
+                    # comparing the 
+                    a.SetAtomMapNum(0)
+
+                matches = mol.GetSubstructMatch(mol_copy)
+                # if there are matches, then update y to reflect. If no matches, return empty y to filter away in reaction_to_graph_data
+                if matches:
+                    try:
+                        y[matches[special_atom_idx]] = 1
+                    except Exception as e:
+                        print(e)
+                        raise Exception(f"Something went wrong with matches={matches}")
+        
         return y
     
     def create_edge_index(self, mol):
@@ -176,3 +193,12 @@ if __name__ == "__main__":
     data_objs = mol_to_graph.process_csv(csv_path)
     print(data_objs[0])
     print(len(data_objs))
+    count_zeros = 0
+    count_ones = 0
+    for i, obj in enumerate(data_objs):
+        if obj.y.sum() == 0:
+            count_zeros += 1
+        if obj.y.sum() == 1:
+            count_ones += 1
+    print(count_zeros)
+    print(count_ones)

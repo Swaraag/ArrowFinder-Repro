@@ -5,6 +5,7 @@
 import torch
 from modules.mol_graph_utils import CSVToGraphs
 
+# nn.Module source code: https://github.com/pytorch/pytorch/blob/be757957bace28100e571ec7914765020be4a069/torch/nn/modules/module.py#L69
 class CustomGPS(torch.nn.Module):
     def __init__(self, num_layers):
         super().__init__()
