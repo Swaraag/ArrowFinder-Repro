@@ -1,0 +1,8 @@
+# Pip requirements for python 3.9.25, including torch dependencies for reaction_prediction/atom/architectures
+numpy==1.26.4
+rdkit_pypi==2022.9.5
+h5py==3.14.0
+matplotlib==3.9.4
+tensorflow==2.20.0
+torch_geometric==2.6.1
+torch==2.8.0
