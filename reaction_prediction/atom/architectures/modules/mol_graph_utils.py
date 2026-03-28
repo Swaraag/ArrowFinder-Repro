@@ -4,6 +4,7 @@ from torch_geometric.data import Data
 from reaction_prediction.atom.utils import label_each_atom, mol_with_hydrogens
 from rdkit import Chem
 import torch
+from torch_geometric.transforms import AddRandomWalkPE
 
 class CSVToGraphs:
     def __init__(self, atom_type):
@@ -37,20 +38,14 @@ class CSVToGraphs:
                 
                 edge_index = self.create_edge_index(self, mol)
 
-                # empty adj matrix for edge attributes. 
                 edge_attr = self.create_edge_attr(edge_index, mol)
 
-                y = torch.zeros((len(x)))
+                y = self.create_y(x)
                 
-                # s_atom stores either all sources, or all sink
-                s_atom = mol_with_hydrogens(s_atom)
-                for special_atom in s_atom:
-                    for mol_atom_idx, mol_atom in enumerate(x):
-                        if mol_atom.GetIdx() == special_atom.GetIdx():
-                            y[mol_atom_idx] = 1
-
                 data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr)
-
+                transform = AddRandomWalkPE(walk_length=20, attr_name="random_walk")
+                return transform(data)
+                # positional encoding data stored in data.random_walk
 
     def process_csv(self, csv_path):
         # this list is gonna contain both atom information (torch_geometric.data.Data.x) 
@@ -63,6 +58,16 @@ class CSVToGraphs:
                 all_data_objs.extend(self.reaction_to_graph_data(row))
         return all_data_objs
     
+    def create_y(self, x):
+        y = torch.zeros((len(x)))
+
+        # s_atom stores either all sources, or all sink
+        s_atom = mol_with_hydrogens(s_atom)
+        for special_atom in s_atom:
+            for mol_atom_idx, mol_atom in enumerate(x):
+                if mol_atom.GetIdx() == special_atom.GetIdx():
+                    y[mol_atom_idx] = 1
+        return y
     def create_edge_index(self, mol):
         # empty adjacency matrix for edge index.
         edge_index = torch.zeros((mol.GetNumAtoms(), mol.GetNumAtoms()))
