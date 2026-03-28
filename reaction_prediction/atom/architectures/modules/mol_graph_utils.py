@@ -26,6 +26,23 @@ class CSVToGraphs:
 
         self.ATOM_TYPES = [6, 8, 7, 1, 9, 16, 17, 35, 14, 15, 5, 53, 11, 3, 13]
         
+    def process_csv(self, csv_path):
+        # this list is gonna contain both atom information (torch_geometric.data.Data.x) 
+        # and atom labels (torch_geometric.data.Data.y)
+        all_data_objs = []
+
+        with open(csv_path, 'r') as f:
+            reader = csv.reader(f)
+            for i, row in enumerate(reader):
+                print(i)
+                new_data_objs, num_node_features = self.reaction_to_graph_data(row)
+                all_data_objs.extend(new_data_objs)
+                if i > 100:
+                    break
+        print(len(all_data_objs))
+
+        return all_data_objs, num_node_features
+    
     def reaction_to_graph_data(self, row):
         """
         Sizably borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
@@ -49,7 +66,7 @@ class CSVToGraphs:
             for smi in atom_smis:
                 mol = mol_with_hydrogens(smi)
                 atoms = mol.GetAtoms()
-                x = self.create_x(atoms)
+                x, num_node_features = self.create_x(atoms)
                 
                 edge_index = self.create_edge_index(mol)
                 # skip molecules entirely if they have no edges, bc not much for GT to reason about
@@ -64,28 +81,13 @@ class CSVToGraphs:
                     continue
                 
                 data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
+                # enforces and validates data object, throwing an error if something doesnt line up
                 data.validate(raise_on_error=True)
 
                 transform = AddRandomWalkPE(walk_length=20, attr_name="random_walk")
                 data_objs.append(transform(data))
                 # positional encoding data stored in data.random_walk
-        return data_objs
-        
-
-    def process_csv(self, csv_path):
-        # this list is gonna contain both atom information (torch_geometric.data.Data.x) 
-        # and atom labels (torch_geometric.data.Data.y)
-        all_data_objs = []
-
-        with open(csv_path, 'r') as f:
-            reader = csv.reader(f)
-            for i, row in enumerate(reader):
-                print(i)
-                all_data_objs.extend(self.reaction_to_graph_data(row))
-                if i > 100:
-                    break
-        print(len(all_data_objs))
-        return all_data_objs
+        return data_objs, num_node_features
     
     def create_x(self, atoms):
         node_features = ["GetDegree", "GetFormalCharge", 
@@ -108,7 +110,19 @@ class CSVToGraphs:
 
             final_feature_arr = torch.cat([feature_array, atom_type_ohe, atom_hybrid_ohe], dim=0)
             x[atom_idx] = final_feature_arr
-        return x
+        return x, total_feature_dim
+    
+    def create_edge_index(self, mol):
+        # empty adjacency matrix for edge index.
+        edge_index = torch.zeros((mol.GetNumAtoms(), mol.GetNumAtoms()))
+
+        for bond in mol.GetBonds():
+            # for each beginning atom in the bond, update it's pair to 1 in the adj matrix
+            edge_index[bond.GetBeginAtomIdx()][bond.GetEndAtomIdx()] = 1
+            edge_index[bond.GetEndAtomIdx()][bond.GetBeginAtomIdx()] = 1
+        # returns tensor containing only indices of nonzero elements in adj matrix
+        # converts edge_index into dim [num_edges, 2], so transpose to get [2, num_edges] which data.edge_index expects
+        return edge_index.nonzero().t()
     
     def get_type_ohe(self, atom):
         # figure out atomic type one hot encoding
@@ -133,6 +147,20 @@ class CSVToGraphs:
         
         atom_hybrid_idx = self.ALL_HYBRIDS.index(curr_hybrid)
         return one_hot(torch.tensor(atom_hybrid_idx), num_classes=6).float()
+
+    def create_edge_attr(self, edge_index, mol):
+        # Bond type, ring membership, aromaticity
+        edge_attr_names = ("GetBondTypeAsDouble", "IsInRing", "GetIsAromatic")
+        edge_attr = torch.zeros((edge_index.shape[1], len(edge_attr_names)))
+        
+        torch.zeros((len(edge_index), len(edge_attr_names)))
+        for edge in range(len(edge_index)):
+            for attr_index, attr_func in enumerate(edge_attr_names):
+                # using the func tuples to add edge attrs to the edges
+                method = getattr(mol.GetBondBetweenAtoms(edge_index[0][edge].item(), edge_index[1][edge].item()), attr_func)
+                edge_attr[edge][attr_index] = method()
+        
+        return edge_attr
     
     def create_y(self, mol, s_atom):
         x = mol.GetAtoms()
@@ -159,32 +187,6 @@ class CSVToGraphs:
                         raise Exception(f"Something went wrong with matches={matches}")
         
         return y
-    
-    def create_edge_index(self, mol):
-        # empty adjacency matrix for edge index.
-        edge_index = torch.zeros((mol.GetNumAtoms(), mol.GetNumAtoms()))
-
-        for bond in mol.GetBonds():
-            # for each beginning atom in the bond, update it's pair to 1 in the adj matrix
-            edge_index[bond.GetBeginAtomIdx()][bond.GetEndAtomIdx()] = 1
-            edge_index[bond.GetEndAtomIdx()][bond.GetBeginAtomIdx()] = 1
-        # returns tensor containing only indices of nonzero elements in adj matrix
-        # converts edge_index into dim [num_edges, 2], so transpose to get [2, num_edges] which data.edge_index expects
-        return edge_index.nonzero().t()
-
-    def create_edge_attr(self, edge_index, mol):
-        # Bond type, ring membership, aromaticity
-        edge_attr_names = ("GetBondTypeAsDouble", "IsInRing", "GetIsAromatic")
-        edge_attr = torch.zeros((edge_index.shape[1], len(edge_attr_names)))
-        
-        torch.zeros((len(edge_index), len(edge_attr_names)))
-        for edge in range(len(edge_index)):
-            for attr_index, attr_func in enumerate(edge_attr_names):
-                # using the func tuples to add edge attrs to the edges
-                method = getattr(mol.GetBondBetweenAtoms(edge_index[0][edge].item(), edge_index[1][edge].item()), attr_func)
-                edge_attr[edge][attr_index] = method()
-        
-        return edge_attr
 
 if __name__ == "__main__":
     mol_to_graph = CSVToGraphs("source")
