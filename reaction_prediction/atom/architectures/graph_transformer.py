@@ -17,24 +17,42 @@ class CustomGPS(torch.nn.Module):
         else:
             raise ValueError("Atom type isn't source or sink")
 
-        self._layers = nn.ModuleList()
-        curr_dim = num_node_features
-        hidden_dim = hidden_dim
-        for layer in range(num_layers):
+        # need to map the node features to a hidden dim first before the GPSConv layers
+        self._first_layer = nn.Linear(in_features=hparams["num_node_features"], out_features=hparams["hidden_dim"]) 
+
+        self._hidden_layers = nn.ModuleList()
+        for _ in range(hparams["num_hidden_layers"]):
+
             inner_mlp = nn.Sequential(
-                nn.Linear(curr_dim, hidden_dim),
+                nn.Linear(hparams["hidden_dim"], hparams["hidden_dim"]),
                 nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim)
+                nn.Linear(hparams["hidden_dim"], hparams["hidden_dim"])
             )
-            # After the first dim being num node features, make all input dims hidden_dim
-            curr_dim = hidden_dim
 
-            local_conv = GINEConv(nn=inner_mlp, edge_dim=edge_dim)
-            self.gps_layer = GPSConv(channels=num_node_features,
-                                    conv=local_conv
-                                    )
+            local_conv = GINEConv(nn=inner_mlp, edge_dim=hparams["num_edge_features"])
+            self._hidden_layers.append(GPSConv(channels=hparams["hidden_dim"],
+                                    conv=local_conv,
+                                    dropout=hparams["dropout"],
+                                    act="relu",
+                                    norm="batch_norm",
+                                    attn_type="multihead"
+                                    ))
+            
+        self._final_layer = nn.Linear(in_features=hparams["hidden_dim"], out_features=1)
+
+    def forward(self, x, edge_index, batch, edge_attr):
+        x = self._first_layer(x)
+        for layer in self._hidden_layers:
+            x = layer(x, edge_index, batch=batch, edge_attr=edge_attr)
+        x = self._final_layer(x)
+        return x
+    
+
+if __name__ == "__main__":
+    import json
+    config_path = "model_configs/gt_config.json"
+    with open(config_path, "r") as f:
+        hparams = json.load(f)
 
 
-    def forward(self):
-        for batch in self._data_loader:
-            pass
+    gps_model = CustomGPS("source", hparams=hparams)
