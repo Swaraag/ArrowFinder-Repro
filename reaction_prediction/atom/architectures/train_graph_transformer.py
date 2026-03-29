@@ -24,11 +24,12 @@ def create_checkpoint_callback(best_monitor, cur_monitor, output_file_path, gps_
     return best_monitor
 
 
-def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_AUROC_metric):
+def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_AUROC_metric, device):
     # switch to .eval() mode 
     gps_model.eval()
     with torch.no_grad():
         for batch in val_loop:
+            batch = batch.to(device)
             val_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr)
 
             running_val_loss.append(bce(val_outputs, torch.reshape(batch.y, (val_outputs.shape[0], 1))).item())
@@ -40,11 +41,12 @@ def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val
                                  val_AUROC=val_AUROC)
     return running_val_loss, val_AUROC
 
-def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams):
+def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams, device):
     # switch to .train() mode
     running_train_loss = 0.0
     gps_model.train()
     for batch in training_loop:
+        batch = batch.to(device)
         optimizer.zero_grad()
         train_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr)
         # shapes are slightly mismatched, so reshape needed to adjust
@@ -58,6 +60,9 @@ def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams):
     return running_train_loss
     
 def main(model_config_file_path, train_file_path, val_file_path, history_output_dir, model_output_file_path):
+    device = torch.device("mps" if torch.backends.mps.is_available() else 
+                      "cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device {device}")
     with open(model_config_file_path, "r") as f:
         hparams = json.load(f)
 
@@ -74,12 +79,12 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
     train_data_loader = DataLoader(train_data_objs, batch_size=hparams["batch_size"], shuffle=True)
     val_data_loader   = DataLoader(val_data_objs, batch_size=hparams["batch_size"], shuffle=True)
 
-    gps_model = CustomGPS(hparams=hparams)
+    gps_model = CustomGPS(hparams=hparams).to(device)
     # optimizer also has a weight decay parameter to possibly tune. hparams has hparams["weight_decay"] set at default to 0.01
     optimizer = torch.optim.AdamW(gps_model.parameters(), hparams["lr"])
 
     # pos_weight set to neg_sum / pos_sum (inverse of frequency)
-    bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([train_pos_neg[1]/train_pos_neg[0]]))
+    bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([train_pos_neg[1]/train_pos_neg[0]])).to(device)
 
     train_losses = []
     val_losses = []
@@ -92,7 +97,7 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
         training_loop = tqdm(train_data_loader, total=len(train_data_loader), leave=True)
 
         # core loop for feed forward and backprop
-        running_train_loss = run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams)
+        running_train_loss = run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams, device)
         train_losses.append(running_train_loss/len(train_data_loader))
         
         val_AUROC_metric = BinaryAUROC()
@@ -100,7 +105,7 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
         # tracking as list since i need average incrementally in run_val_loop
         running_val_loss = []
         # core loop for validation dataset
-        running_val_loss, val_AUROC = run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_AUROC_metric)
+        running_val_loss, val_AUROC = run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_AUROC_metric, device)
         # update history lists
         val_loss = sum(running_val_loss)/len(running_val_loss)
         val_losses.append(val_loss)
