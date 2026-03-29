@@ -1,5 +1,5 @@
 {
-    "num_hidden_layers": 3,
+    "num_hidden_layers": 2,
     "hidden_dim": 64,
     "dropout": 0.5,
     "lr": 1e-3,
