@@ -24,7 +24,21 @@ def create_checkpoint_callback(best_monitor, cur_monitor, output_file_path, gps_
     return best_monitor
 
 
-a
+def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_AUROC_metric):
+    # switch to .eval() mode 
+    gps_model.eval()
+    with torch.no_grad():
+        for batch in val_loop:
+            val_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr)
+
+            running_val_loss.append(bce(val_outputs, torch.reshape(batch.y, (val_outputs.shape[0], 1))).item())
+            val_AUROC_metric(torch.squeeze(val_outputs), batch.y.long())
+            val_AUROC = val_AUROC_metric.compute().item()
+
+            val_loop.set_description(f"Epoch (validation) [{epoch+1}/{hparams['epochs']}]")
+            val_loop.set_postfix(val_loss=sum(running_val_loss)/len(running_val_loss),
+                                 val_AUROC=val_AUROC)
+    return running_val_loss, val_AUROC
 
 def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams):
     # switch to .train() mode
@@ -97,6 +111,7 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
             # best val loss isn't getting updated inside here because checkpoint callback still needs to run
             early_stopping_patience = hparams["patience"]
         elif early_stopping_patience <= 0:
+            print(f"The hyperparam patience of {hparams['patience']} has run out. Training has ended.")
             break
         else:
             early_stopping_patience -= 1
