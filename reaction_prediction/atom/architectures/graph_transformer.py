@@ -29,6 +29,7 @@ class CustomGPS(torch.nn.Module):
                                     dropout=hparams["dropout"],
                                     act="relu",
                                     norm="batch_norm",
+                                    heads=hparams["heads"],
                                     attn_type="multihead"
                                     ))
             
@@ -49,3 +50,4 @@ if __name__ == "__main__":
         hparams = json.load(f)
 
     gps_model = CustomGPS(hparams=hparams)
+    print(sum(p.numel() for p in gps_model.parameters()))
