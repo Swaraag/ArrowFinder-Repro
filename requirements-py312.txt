@@ -1,0 +1,9 @@
+# Pip requirements for python 3.12.13, used in Google Colab Pro
+numpy
+rdkit
+h5py
+matplotlib
+tensorflow
+torch_geometric
+torch
+torchmetrics
