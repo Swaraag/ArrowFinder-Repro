@@ -65,7 +65,7 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
     print(f"Device: {device}")
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
-    
+
     with open(model_config_file_path, "r") as f:
         hparams = json.load(f)
 
@@ -79,8 +79,8 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
     print(f"TRAIN: There are {train_pos_neg[0]} positive targets and {train_pos_neg[1]} negative targets.")
     print(f"VAL: There are {val_pos_neg[0]} positive targets and {val_pos_neg[1]} negative targets.")
 
-    train_data_loader = DataLoader(train_data_objs, batch_size=hparams["batch_size"], shuffle=True)
-    val_data_loader   = DataLoader(val_data_objs, batch_size=hparams["batch_size"], shuffle=True)
+    train_data_loader = DataLoader(train_data_objs, batch_size=hparams["batch_size"], shuffle=True, num_workers=4, pin_memory=True)
+    val_data_loader   = DataLoader(val_data_objs, batch_size=hparams["batch_size"], shuffle=True, num_workers=4, pin_memory=True)
 
     gps_model = CustomGPS(hparams=hparams).to(device)
     # optimizer also has a weight decay parameter to possibly tune. hparams has hparams["weight_decay"] set at default to 0.01
