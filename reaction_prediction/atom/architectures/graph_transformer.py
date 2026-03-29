@@ -8,14 +8,8 @@ from torch_geometric.nn import GPSConv, GINEConv
 
 # nn.Module source code: https://github.com/pytorch/pytorch/blob/be757957bace28100e571ec7914765020be4a069/torch/nn/modules/module.py#L69
 class CustomGPS(torch.nn.Module):
-    def __init__(self, atom_type, hparams):
+    def __init__(self, hparams):
         super().__init__()
-        
-        # either source or sink / REMOVE THIS CODE IF SELF._ATOM_TYPE IS USED IN NO OTHER FUNCTIONS
-        if atom_type == 'source' or atom_type == 'sink':
-            self._atom_type = atom_type
-        else:
-            raise ValueError("Atom type isn't source or sink")
 
         # need to map the node features to a hidden dim first before the GPSConv layers
         self._first_layer = nn.Linear(in_features=hparams["num_node_features"], out_features=hparams["hidden_dim"]) 
@@ -54,5 +48,4 @@ if __name__ == "__main__":
     with open(config_path, "r") as f:
         hparams = json.load(f)
 
-
-    gps_model = CustomGPS("source", hparams=hparams)
+    gps_model = CustomGPS(hparams=hparams)

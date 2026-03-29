@@ -131,7 +131,7 @@ class CSVToGraphs:
         atom_map = {num: i for i, num in enumerate(self.ATOM_TYPES)}
 
         atom_type_idx = atom.GetAtomicNum()
-        if not atom_map.get(atom_type_idx):
+        if atom_map.get(atom_type_idx) is None:
             # The next index for "OTHER" if the atom type isn't one of the ones in the dict
             atom_type_idx = len(self.ATOM_TYPES)
         else:
@@ -207,7 +207,7 @@ def parse_args():
         help="Path to save the graph data",
     )
     parser.add_argument(
-        "--atomtype", "-a",
+        "--atom_type", "-a",
         required=True,
         help="'source' or 'sink' to build graph data with source atoms or sink atoms",
     )
@@ -220,4 +220,4 @@ def main(mol_to_graph, file_input, file_output):
 
 if __name__ == "__main__":
     args = parse_args()
-    main(CSVToGraphs(args.atomtype), args.input, args.output)
+    main(CSVToGraphs(args.atom_type), args.input, args.output)

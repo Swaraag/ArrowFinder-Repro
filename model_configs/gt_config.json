@@ -6,9 +6,9 @@
     "weight_decay": 0.01,
     "epochs": 100,
     "batch_size": 64,
-    "patience": 20,
     "walk_length": 20,
     "heads": 4,
     "num_node_features": 27,
-    "num_edge_features": 3
+    "num_edge_features": 3,
+    "patience": 20
 }
