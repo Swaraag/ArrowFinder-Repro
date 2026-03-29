@@ -62,7 +62,10 @@ def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams, 
 def main(model_config_file_path, train_file_path, val_file_path, history_output_dir, model_output_file_path):
     device = torch.device("mps" if torch.backends.mps.is_available() else 
                       "cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device {device}")
+    print(f"Device: {device}")
+    torch.manual_seed(42)
+    torch.cuda.manual_seed(42)
+    
     with open(model_config_file_path, "r") as f:
         hparams = json.load(f)
 
