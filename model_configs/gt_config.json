@@ -5,7 +5,7 @@
     "lr": 1e-3,
     "weight_decay": 0.1,
     "epochs": 100,
-    "batch_size": 64,
+    "batch_size": 128,
     "walk_length": 20,
     "heads": 4,
     "num_node_features": 27,
