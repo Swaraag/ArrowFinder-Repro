@@ -173,11 +173,13 @@ def run_gt_eval(
                         source_outputs = source_model(x=source_data_obj.x,
                                                     edge_index=source_data_obj.edge_index, 
                                                     batch=torch.zeros(len(source_data_obj.x), dtype=torch.long), 
-                                                    edge_attr=source_data_obj.edge_attr)
+                                                    edge_attr=source_data_obj.edge_attr,
+                                                    random_walk=source_data_obj.random_walk)
                         sink_outputs = sink_model(x=sink_data_obj.x,
                                                     edge_index=sink_data_obj.edge_index, 
                                                     batch=torch.zeros(len(sink_data_obj.x), dtype=torch.long), 
-                                                    edge_attr=sink_data_obj.edge_attr)
+                                                    edge_attr=sink_data_obj.edge_attr,
+                                                    random_walk=sink_data_obj.random_walk)
                         try:
                             # the models currently output raw nums, so apply sigmoid
                             source_scores.append(torch.sigmoid(source_outputs[atom_idx]))

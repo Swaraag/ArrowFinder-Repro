@@ -83,9 +83,9 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
 
     gps_model = CustomGPS(hparams=hparams).to(device)
     # optimizer also has a weight decay parameter to possibly tune. hparams has hparams["weight_decay"] set at default to 0.01
-    optimizer = torch.optim.AdamW(gps_model.parameters(), hparams["lr"])
+    optimizer = torch.optim.AdamW(gps_model.parameters(), lr=hparams["lr"], weight_decay=hparams["weight_decay"])
     # learning rate scheduler
-    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=5, mode='min', min_lr=1**(-6))
+    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=5, mode='min', min_lr=1e-6)
 
     # pos_weight set to neg_sum / pos_sum (inverse of frequency)
     bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([train_pos_neg[1]/train_pos_neg[0]])).to(device)

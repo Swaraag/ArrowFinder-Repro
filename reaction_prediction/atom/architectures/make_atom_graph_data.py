@@ -51,7 +51,7 @@ class CSVToGraphs:
                 return idx
         return None
     
-    def new_function(self, row):
+    def reaction_to_graph_data(self, row):
         
         """
         Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
@@ -76,16 +76,7 @@ class CSVToGraphs:
             atoms = mol.GetAtoms()
             x = self.create_x(atoms)
 
-            y = torch.zeros((len(x)))
-            for smi in label_each_atom(mol_smi):
-                canon_smi = Chem.MolToSmiles(smi)
-                if canon_smi == canon_special_atom:
-                    try:
-                        special_atom_idx = self.get_mapped_atom_idx(mol)
-                        y[special_atom_idx] = 1
-                    except Exception as e:
-                        print(e)
-                        raise Exception(f"An exception occured, e: {e}")
+            y = self.create_y(mol, canon_special_atom)
                 
             # # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
             if y.sum() == 0:
@@ -108,67 +99,23 @@ class CSVToGraphs:
             # positional encoding data stored in data.random_walk
         return data_objs
     
-    def reaction_to_graph_data(self, row):
-        """
-        Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
-        the CSV row in a similar way.
-        """
-        reaction, arrows, source_atom, sink_atom = row
-        if self._atom_type_str == 'source':
-            s_atom = source_atom
-        elif self._atom_type_str == 'sink':
-            s_atom = sink_atom
+    def create_y(self, mol, canon_special_atom):
+        x = mol.GetAtoms()
 
-        mol_special_atom = mol_with_hydrogens(s_atom)
-        canon_special_atom = Chem.MolToSmiles(mol_special_atom)
-
-        reactants = reaction.split(">>")[0]
-
-        data_objs = []
-
-        for mol_smi in reactants.split("."):
-            try:
-                atom_smis = label_each_atom(mol_smi)
-            except:
-                continue
-            for smi in atom_smis:
-                mol = mol_with_hydrogens(smi)
-                
-                atoms = mol.GetAtoms()
-                x = self.create_x(atoms)
-
-                special_atom_idx = self.get_mapped_atom_idx(mol)
-
-                canon_smi = Chem.MolToSmiles(mol)
-                
-                y = torch.zeros((len(x)))
-                if canon_smi == canon_special_atom:
-                    try:
-                        y[special_atom_idx] = 1
-                    except Exception as e:
-                        print(e)
-                        raise Exception(f"An exception occured, e: {e}")
-                    
-                # # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
-                # if y.sum() == 0:
-                #     continue
-               
-                edge_index = self.create_edge_index(mol)
-                # skip molecules entirely if they have no edges, bc not much for GT to reason about
-                if edge_index.shape[1] == 0:
-                    continue
-
-                edge_attr = self.create_edge_attr(edge_index, mol)
-
-                data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
-                
-                # enforces and validates data object, throwing an error if something doesnt line up
-                data.validate(raise_on_error=True)
-
-                transform = AddRandomWalkPE(walk_length=20, attr_name="random_walk")
-                data_objs.append(transform(data))
-                # positional encoding data stored in data.random_walk
-        return data_objs
+        y = torch.zeros((len(x)))
+        # for each atom in x
+        for idx, atom in enumerate(x):
+            # set atom map num to 1
+            atom.SetAtomMapNum(1)
+            # canonicalize it
+            canon_mol = Chem.MolToSmiles(mol)
+            # now it matches structure of canon_special_atom, which also has atom map = 1 on itself but otherwise is canonicalized
+            if canon_mol == canon_special_atom:
+                # if this is the right one, set that index of y to 1
+                y[idx] = 1
+            # once youre done set the atom back to 0 to not interfere with future loop iterations
+            atom.SetAtomMapNum(0)
+        return y
     
     def connected_smiles_to_graph_data(self, connectedSmiles):
         try:
@@ -260,7 +207,6 @@ class CSVToGraphs:
         edge_attr_names = ("GetBondTypeAsDouble", "IsInRing", "GetIsAromatic")
         edge_attr = torch.zeros((edge_index.shape[1], len(edge_attr_names)))
         
-        torch.zeros((len(edge_index), len(edge_attr_names)))
         for edge in range(edge_index.shape[1]):
             for attr_index, attr_func in enumerate(edge_attr_names):
                 # using the func tuples to add edge attrs to the edges
@@ -268,34 +214,6 @@ class CSVToGraphs:
                 edge_attr[edge][attr_index] = method()
         
         return edge_attr
-    
-    def create_y(self, mol, s_atom):
-        x = mol.GetAtoms()
-        y = torch.zeros((len(x)))
-
-        # special_mol stores either all sources, or all sinks
-        try:
-            special_mol = mol_with_hydrogens(s_atom)
-        except:
-            return y
-        for special_atom in special_mol.GetAtoms():
-            if special_atom.GetAtomMapNum()==1:
-                special_atom_idx = special_atom.GetIdx()
-                # running Chem.Mol to get a copy of it to not change the original
-                mol_copy = Chem.Mol(special_mol)
-                for a in mol_copy.GetAtoms():
-                    a.SetAtomMapNum(0)
-
-                matches = mol.GetSubstructMatch(mol_copy)
-                # if there are matches, then update y to reflect. If no matches, return empty y to filter away in reaction_to_graph_data
-                if matches:
-                    try:
-                        y[matches[special_atom_idx]] = 1
-                    except Exception as e:
-                        print(e)
-                        raise Exception(f"Something went wrong with matches={matches}")
-        
-        return y
 
 def parse_args():
     parser = argparse.ArgumentParser(
