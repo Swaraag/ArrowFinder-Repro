@@ -62,16 +62,30 @@ class CSVToGraphs:
             s_atom = source_atom
         elif self._atom_type_str == 'sink':
             s_atom = sink_atom
-
-        mol_special_atom = mol_with_hydrogens(s_atom)
-        canon_special_atom = Chem.MolToSmiles(mol_special_atom)
+            
+        try:
+            mol_special_atom = mol_with_hydrogens(s_atom)
+            canon_special_atom = Chem.MolToSmiles(mol_special_atom)
+        except Exception as e:
+            print(e)
+            return []
+        if len(mol_special_atom.GetAtoms()) == 0:
+            print("No atoms were present in the source/sink atom's conversion.")
+            return []
 
         reactants = reaction.split(">>")[0]
 
         data_objs = []
 
         for mol_smi in reactants.split("."):
-            mol = mol_with_hydrogens(mol_smi)
+            try:
+                mol = mol_with_hydrogens(mol_smi)
+            except Exception as e:
+                print(e)
+                continue
+            if len(mol.GetAtoms()) == 0:
+                print("No atoms were present in the molecule.")
+                continue
             
             atoms = mol.GetAtoms()
             x = self.create_x(atoms)
