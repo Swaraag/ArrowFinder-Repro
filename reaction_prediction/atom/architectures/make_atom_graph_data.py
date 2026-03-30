@@ -51,6 +51,63 @@ class CSVToGraphs:
                 return idx
         return None
     
+    def new_function(self, row):
+        
+        """
+        Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
+        the CSV row in a similar way.
+        """
+        reaction, arrows, source_atom, sink_atom = row
+        if self._atom_type_str == 'source':
+            s_atom = source_atom
+        elif self._atom_type_str == 'sink':
+            s_atom = sink_atom
+
+        mol_special_atom = mol_with_hydrogens(s_atom)
+        canon_special_atom = Chem.MolToSmiles(mol_special_atom)
+
+        reactants = reaction.split(">>")[0]
+
+        data_objs = []
+
+        for mol_smi in reactants.split("."):
+            mol = mol_with_hydrogens(mol_smi)
+            
+            atoms = mol.GetAtoms()
+            x = self.create_x(atoms)
+
+            y = torch.zeros((len(x)))
+            for smi in label_each_atom(mol_smi):
+                canon_smi = Chem.MolToSmiles(smi)
+                if canon_smi == canon_special_atom:
+                    try:
+                        special_atom_idx = self.get_mapped_atom_idx(mol)
+                        y[special_atom_idx] = 1
+                    except Exception as e:
+                        print(e)
+                        raise Exception(f"An exception occured, e: {e}")
+                
+            # # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
+            if y.sum() == 0:
+                continue
+            
+            edge_index = self.create_edge_index(mol)
+            # skip molecules entirely if they have no edges, bc not much for GT to reason about
+            if edge_index.shape[1] == 0:
+                continue
+
+            edge_attr = self.create_edge_attr(edge_index, mol)
+
+            data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
+            
+            # enforces and validates data object, throwing an error if something doesnt line up
+            data.validate(raise_on_error=True)
+
+            transform = AddRandomWalkPE(walk_length=20, attr_name="random_walk")
+            data_objs.append(transform(data))
+            # positional encoding data stored in data.random_walk
+        return data_objs
+    
     def reaction_to_graph_data(self, row):
         """
         Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
@@ -61,6 +118,9 @@ class CSVToGraphs:
             s_atom = source_atom
         elif self._atom_type_str == 'sink':
             s_atom = sink_atom
+
+        mol_special_atom = mol_with_hydrogens(s_atom)
+        canon_special_atom = Chem.MolToSmiles(mol_special_atom)
 
         reactants = reaction.split(">>")[0]
 
@@ -73,20 +133,32 @@ class CSVToGraphs:
                 continue
             for smi in atom_smis:
                 mol = mol_with_hydrogens(smi)
+                
                 atoms = mol.GetAtoms()
                 x = self.create_x(atoms)
+
+                special_atom_idx = self.get_mapped_atom_idx(mol)
+
+                canon_smi = Chem.MolToSmiles(mol)
                 
+                y = torch.zeros((len(x)))
+                if canon_smi == canon_special_atom:
+                    try:
+                        y[special_atom_idx] = 1
+                    except Exception as e:
+                        print(e)
+                        raise Exception(f"An exception occured, e: {e}")
+                    
+                # # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
+                # if y.sum() == 0:
+                #     continue
+               
                 edge_index = self.create_edge_index(mol)
                 # skip molecules entirely if they have no edges, bc not much for GT to reason about
                 if edge_index.shape[1] == 0:
                     continue
 
                 edge_attr = self.create_edge_attr(edge_index, mol)
-
-                y = self.create_y(mol, s_atom)
-                # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
-                if y.sum() == 0:
-                    continue
 
                 data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
                 
@@ -212,7 +284,6 @@ class CSVToGraphs:
                 # running Chem.Mol to get a copy of it to not change the original
                 mol_copy = Chem.Mol(special_mol)
                 for a in mol_copy.GetAtoms():
-                    # comparing the 
                     a.SetAtomMapNum(0)
 
                 matches = mol.GetSubstructMatch(mol_copy)

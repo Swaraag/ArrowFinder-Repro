@@ -30,7 +30,7 @@ def run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val
     with torch.no_grad():
         for batch in val_loop:
             batch = batch.to(device)
-            val_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr)
+            val_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr, random_walk=batch.random_walk)
 
             running_val_loss.append(bce(val_outputs, torch.reshape(batch.y, (val_outputs.shape[0], 1))).item())
             val_AUROC_metric(torch.squeeze(val_outputs), batch.y.long())
@@ -48,7 +48,7 @@ def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams, 
     for batch in training_loop:
         batch = batch.to(device)
         optimizer.zero_grad()
-        train_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr)
+        train_outputs = gps_model(x=batch.x, edge_index=batch.edge_index, batch=batch.batch, edge_attr=batch.edge_attr, random_walk=batch.random_walk)
         # shapes are slightly mismatched, so reshape needed to adjust
         train_loss = bce(train_outputs, torch.reshape(batch.y, (train_outputs.shape[0], 1)))
         train_loss.backward()

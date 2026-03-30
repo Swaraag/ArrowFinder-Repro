@@ -35,8 +35,8 @@ class CustomGPS(torch.nn.Module):
             
         self._final_layer = nn.Linear(in_features=hparams["hidden_dim"], out_features=1)
 
-    def forward(self, x, edge_index, batch, edge_attr):
-        x = self._first_layer(x)
+    def forward(self, x, edge_index, batch, edge_attr, random_walk):
+        x = self._first_layer(torch.cat((x, random_walk), dim=1))
         for layer in self._hidden_layers:
             x = layer(x, edge_index, batch=batch, edge_attr=edge_attr)
         x = self._final_layer(x)
