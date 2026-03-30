@@ -44,9 +44,16 @@ class CSVToGraphs:
 
         return all_data_objs, self._num_node_features
     
+    def get_mapped_atom_idx(self, connectedSmiles):
+        mol = mol_with_hydrogens(connectedSmiles)
+        for idx, atom in enumerate(mol.GetAtoms()):
+            if atom.GetAtomMapNum() == 1:
+                return idx
+        return None
+    
     def reaction_to_graph_data(self, row):
         """
-        Sizably borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
+        Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
         the CSV row in a similar way.
         """
         reaction, arrows, source_atom, sink_atom = row
@@ -80,8 +87,9 @@ class CSVToGraphs:
                 # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
                 if y.sum() == 0:
                     continue
-                
+
                 data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
+                
                 # enforces and validates data object, throwing an error if something doesnt line up
                 data.validate(raise_on_error=True)
 
@@ -90,6 +98,32 @@ class CSVToGraphs:
                 # positional encoding data stored in data.random_walk
         return data_objs
     
+    def connected_smiles_to_graph_data(self, connectedSmiles):
+        try:
+            mol = mol_with_hydrogens(connectedSmiles)
+            atoms = mol.GetAtoms()
+            x = self.create_x(atoms)
+            edge_index = self.create_edge_index(mol)
+
+            # skip molecules entirely if they have no edges, bc not much for GT to reason about
+            if edge_index.shape[1] == 0:
+                print("No edge features.")
+                return None
+
+            edge_attr = self.create_edge_attr(edge_index, mol)
+
+            data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
+            
+            # enforces and validates data object, throwing an error if something doesnt line up
+            data.validate(raise_on_error=True)
+
+            transform = AddRandomWalkPE(walk_length=20, attr_name="random_walk")
+            return transform(data)
+            # positional encoding data will be stored in data.random_walk
+        except Exception as e:
+            print(e)
+            return None
+
     def create_x(self, atoms):
         node_features = ["GetDegree", "GetFormalCharge", 
                                  "GetTotalNumHs", "IsInRing", "GetIsAromatic"]

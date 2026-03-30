@@ -1,4 +1,4 @@
-from graph_transformer import CustomGPS
+from reaction_prediction.atom.architectures.graph_transformer.graph_transformer import CustomGPS
 import json
 from torch_geometric.loader import DataLoader
 import torch
@@ -60,8 +60,7 @@ def run_training_loop(training_loop, optimizer, gps_model, bce, epoch, hparams, 
     return running_train_loss
     
 def main(model_config_file_path, train_file_path, val_file_path, history_output_dir, model_output_file_path):
-    device = torch.device("mps" if torch.backends.mps.is_available() else 
-                      "cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
@@ -85,6 +84,8 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
     gps_model = CustomGPS(hparams=hparams).to(device)
     # optimizer also has a weight decay parameter to possibly tune. hparams has hparams["weight_decay"] set at default to 0.01
     optimizer = torch.optim.AdamW(gps_model.parameters(), hparams["lr"])
+    # learning rate scheduler
+    lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=5, mode='min', min_lr=1**(-6))
 
     # pos_weight set to neg_sum / pos_sum (inverse of frequency)
     bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([train_pos_neg[1]/train_pos_neg[0]])).to(device)
@@ -111,6 +112,8 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
         running_val_loss, val_AUROC = run_val_loop(val_loop, gps_model, running_val_loss, bce, epoch, hparams, val_AUROC_metric, device)
         # update history lists
         val_loss = sum(running_val_loss)/len(running_val_loss)
+        #update the learning rate
+        lr_scheduler.step(val_loss)
         val_losses.append(val_loss)
         val_AUROCs.append(val_AUROC)
 
@@ -119,7 +122,7 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
             # best val loss isn't getting updated inside here because checkpoint callback still needs to run
             early_stopping_patience = hparams["patience"]
         elif early_stopping_patience <= 0:
-            print(f"The hyperparam patience of {hparams['patience']} has run out. Training has ended.")
+            print(f"The hyperparam patience of {hparams['patience']} has run out. Training has ended. Best val loss was {best_val_loss}")
             break
         else:
             early_stopping_patience -= 1

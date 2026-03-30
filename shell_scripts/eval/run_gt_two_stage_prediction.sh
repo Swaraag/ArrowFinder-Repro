@@ -1,0 +1,12 @@
+python reaction_prediction/atom/architectures/graph_transformer/gt_generate_predictions.py \
+  --input  data/mc_train_fold0/reformatted/test.txt \
+  --output output/mc_train_fold0/preds/gt_two_stage \
+  --allid  output/mc_train_fold0/allid/train_val_combined_allids.json \
+  --source_model output/mc_train_fold0/models/graph_transformer/source.pt \
+  --sink_model   output/mc_train_fold0/models/graph_transformer/sink.pt \
+  --ranker_model output/mc_train_fold0/models/ranker/polar_ranker_single_best.h5 \
+  --gt_source_hparams output/mc_train_fold0/models/graph_transformer/source_plots/config_used.json \
+  --gt_sink_hparams output/mc_train_fold0/models/graph_transformer/sink_plots/config_used.json \
+  --max_orbs 128 \
+  --top_k 10 \
+  --threshold 0.18
