@@ -1,9 +1,0 @@
-index,reaction_line,error_type,error_message
-127,C1CC2CC1[CH:10]3C4CC=CC4[C:20]2([CH:11]3[O-:12])[Cl:21].[HH].[K+]>>C1CC2CC1[CH:10]3[C:20]2(C4C3CC=C4)[CH:11]=[O:12].[Cl-:21].[HH].[K+],RuntimeError,No valid orbital pairs extracted.
-505,[H:20][O:21]C.C[C:11](=[CH:10]CC1(C=CCCCC1=O)C(=O)OC)[O-:12].[HH].[Na+]>>[H:20][CH:10](CC1(C=CCCCC1=O)C(=O)OC)[C:11](=[O:12])C.C[O-:21].[HH].[Na+],RuntimeError,No valid orbital pairs extracted.
-843,CC1=CC=C(C=C1)S(=O)(=O)[O:21][CH:20]2CC[C:11]3([C:10]2(CCC4C3CCC5=CC(=O)CCC45C)C)[O-:12].[HH].[Na+]>>C[C:10]1=[CH:20]CC[C:11](=[O:12])C2CCC3=CC(=O)CCC3(C2CC1)C.CC1=CC=C(C=C1)S(=O)(=O)[O-:21].[HH].[Na+],RuntimeError,No valid orbital pairs extracted.
-1051,CC1CC=CC(=C1C(=O)OCC[Si](C)(C)C)O[Si-:10](C)(C)(C(C)(C)C)[O:11]S(=O)(=O)C(F)(F)F.[HH].[Na+]>>CC1CC=CC(=C1C(=O)OCC[Si](C)(C)C)O[Si:10](C)(C)C(C)(C)C.C(F)(F)(F)S(=O)(=O)[O-:11].[HH].[Na+],RuntimeError,No valid orbital pairs extracted.
-1329,CC1=C(C=C(C=C1)C(C)C)O.CCO.NC2=CC=CC(N)=N2.OC3=CC=CC(Cl)=C3Cl.[OH2+][Na].O.[Na+][C-:20]([Cl:21])(Cl)Cl>>CC1=C(C=C(C=C1)C(C)C)O.CCO.NC2=CC=CC(N)=N2.OC3=CC=CC(Cl)=C3Cl.[OH2+][Na].O.[Na+].[C:20](Cl)Cl.[Cl-:21],ArgumentError,"Python argument types in
-    rdkit.Chem.rdmolops.AddHs(NoneType)
-did not match C++ signature:
-    AddHs(RDKit::ROMol mol, bool explicitOnly=False, bool addCoords=False, boost::python::api::object onlyOnAtoms=None, bool addResidueInfo=False)"

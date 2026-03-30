@@ -102,9 +102,9 @@ def run_gt_eval(
 
     # loading source and sink models
     source_model = CustomGPS(source_hparams).to(device)
-    source_model.load_state_dict(torch.load(source_model_path, weights_only=False))
+    source_model.load_state_dict(torch.load(source_model_path, weights_only=False, map_location=device))
     sink_model = CustomGPS(sink_hparams).to(device)
-    sink_model.load_state_dict(torch.load(sink_model_path, weights_only=False))
+    sink_model.load_state_dict(torch.load(sink_model_path, weights_only=False, map_location=device))
     print("Source and sink models are loaded.")
 
     # If your ranker is a Siamese wrapper, this picks its inner ranker by index.
