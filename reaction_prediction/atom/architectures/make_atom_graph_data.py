@@ -131,7 +131,7 @@ class CSVToGraphs:
             atom.SetAtomMapNum(0)
         return y
     
-    def connected_smiles_to_graph_data(self, connectedSmiles):
+    def react_mol_to_graph_data(self, connectedSmiles):
         try:
             mol = mol_with_hydrogens(connectedSmiles)
             atoms = mol.GetAtoms()
