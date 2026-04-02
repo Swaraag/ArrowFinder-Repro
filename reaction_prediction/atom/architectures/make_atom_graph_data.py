@@ -9,12 +9,14 @@ from torch.nn.functional import one_hot
 import argparse
 
 class CSVToGraphs:
-    def __init__(self, atom_type):
+    def __init__(self, atom_type, is_test):
         # either source or sink
         if atom_type == 'source' or atom_type == 'sink':
             self._atom_type_str = atom_type
         else:
             raise ValueError("Atom type isn't source or sink")
+        
+        self._is_test = is_test
         
         self.ALL_HYBRIDS = [
             Chem.rdchem.HybridizationType.UNSPECIFIED,
@@ -27,6 +29,7 @@ class CSVToGraphs:
         self._num_node_features = 27
 
         self.ATOM_TYPES = [6, 8, 7, 1, 9, 16, 17, 35, 14, 15, 5, 53, 11, 3, 13]
+
         
     def process_csv(self, csv_path):
         # this list is gonna contain both atom information (torch_geometric.data.Data.x) 
@@ -36,7 +39,7 @@ class CSVToGraphs:
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
             for i, row in enumerate(reader):
-                new_data_objs = self.reaction_to_graph_data(row, i)
+                new_data_objs = self.reaction_to_graph_data(row, i, is_test=self._is_test)
                 all_data_objs.extend(new_data_objs)
                 if i % 100 == 0:
                     print("%d number of reactions are processed..."%i, flush=True)
@@ -51,7 +54,7 @@ class CSVToGraphs:
                 return idx
         return None
     
-    def reaction_to_graph_data(self, row, reaction_id):
+    def reaction_to_graph_data(self, row, reaction_id, is_test):
         
         """
         Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
@@ -92,8 +95,9 @@ class CSVToGraphs:
 
             y = self.create_y(mol, canon_special_atom)
                 
-            # # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT
-            if y.sum() == 0:
+            # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT for training
+            # for testing I can't filter out y.sum() == 0 because that artificially affects testing data
+            if not is_test and y.sum() == 0:
                 continue
             
             edge_index = self.create_edge_index(mol)
@@ -249,6 +253,12 @@ def parse_args():
         required=True,
         help="'source' or 'sink' to build graph data with source atoms or sink atoms",
     )
+    parser.add_argument(
+        "--is_test", "-it",
+        required=False,
+        default=False,
+        help="'source' or 'sink' to build graph data with source atoms or sink atoms",
+    )
     return parser.parse_args()
 
 def main(mol_to_graph, file_input, file_output):
@@ -258,4 +268,4 @@ def main(mol_to_graph, file_input, file_output):
 
 if __name__ == "__main__":
     args = parse_args()
-    main(CSVToGraphs(args.atom_type), args.input, args.output)
+    main(CSVToGraphs(args.atom_type, args.is_test), args.input, args.output)
