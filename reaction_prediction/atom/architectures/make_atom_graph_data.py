@@ -36,7 +36,7 @@ class CSVToGraphs:
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
             for i, row in enumerate(reader):
-                new_data_objs = self.reaction_to_graph_data(row)
+                new_data_objs = self.reaction_to_graph_data(row, i)
                 all_data_objs.extend(new_data_objs)
                 if i % 100 == 0:
                     print("%d number of reactions are processed..."%i, flush=True)
@@ -51,7 +51,7 @@ class CSVToGraphs:
                 return idx
         return None
     
-    def reaction_to_graph_data(self, row):
+    def reaction_to_graph_data(self, row, reaction_id):
         
         """
         Borrowing from feature_extraction.FeatureExtraction.reaction_to_feat_vecs_sink, which processes
@@ -103,7 +103,8 @@ class CSVToGraphs:
 
             edge_attr = self.create_edge_attr(edge_index, mol)
 
-            data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
+            # reaction id is passed in through process_csv to store which reaction this molecule is part of 
+            data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms(), reaction_id=reaction_id)
             
             # enforces and validates data object, throwing an error if something doesnt line up
             data.validate(raise_on_error=True)
