@@ -222,7 +222,7 @@ def run_gt_eval(
                     if source_score_dict.get(atom) is None:
                         source_score_dict[atom] = 0.0
                     if sink_score_dict.get(atom) is None:
-                        sink_score_dict[atom] = 0.0
+                        sink_score_dict[atom] = torch.sigmoid(sink_outputs[idx])
                 
                 source_sorted = sorted(source_score_dict.items(), key=lambda x: x[1], reverse=True)
                 sink_sorted   = sorted(sink_score_dict.items(),   key=lambda x: x[1], reverse=True)

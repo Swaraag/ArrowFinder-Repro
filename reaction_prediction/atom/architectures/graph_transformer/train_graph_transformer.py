@@ -121,6 +121,7 @@ def main(model_config_file_path, train_file_path, val_file_path, history_output_
         if val_loss < best_val_loss:
             # best val loss isn't getting updated inside here because checkpoint callback still needs to run
             early_stopping_patience = hparams["patience"]
+            print("Patience has been reset.")
         elif early_stopping_patience <= 0:
             print(f"The hyperparam patience of {hparams['patience']} has run out. Training has ended. Best val loss was {best_val_loss}")
             break

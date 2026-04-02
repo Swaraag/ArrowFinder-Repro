@@ -35,6 +35,7 @@ class CSVToGraphs:
         # this list is gonna contain both atom information (torch_geometric.data.Data.x) 
         # and atom labels (torch_geometric.data.Data.y)
         all_data_objs = []
+        print("Beginning processing.")
 
         with open(csv_path, 'r') as f:
             reader = csv.reader(f)
@@ -97,8 +98,8 @@ class CSVToGraphs:
                 
             # if y returned empty tensor, then this molecule has no target source/sink so its useless for GT for training
             # for testing I can't filter out y.sum() == 0 because that artificially affects testing data
-            if not is_test and y.sum() == 0:
-                continue
+            # if not is_test and y.sum() == 0:
+            #     continue
             
             edge_index = self.create_edge_index(mol)
             # skip molecules entirely if they have no edges, bc not much for GT to reason about
