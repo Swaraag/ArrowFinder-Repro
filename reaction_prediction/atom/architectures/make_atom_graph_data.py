@@ -130,11 +130,15 @@ class CSVToGraphs:
             # canonicalize it
             canon_mol = Chem.MolToSmiles(mol)
             # now it matches structure of canon_special_atom, which also has atom map = 1 on itself but otherwise is canonicalized
+            # print(canon_mol)
+            # print(canon_special_atom)
             if canon_mol == canon_special_atom:
+                print(f"Matched! index {idx} with canon_mol = {canon_mol} and canon_s_atom = {canon_special_atom}")
                 # if this is the right one, set that index of y to 1
                 y[idx] = 1
             # once youre done set the atom back to 0 to not interfere with future loop iterations
             atom.SetAtomMapNum(0)
+        print(f"Iteration done with {idx} values looped.")
         return y
     
     def react_mol_to_graph_data(self, connectedSmiles):
@@ -254,12 +258,12 @@ def parse_args():
         required=True,
         help="'source' or 'sink' to build graph data with source atoms or sink atoms",
     )
-    parser.add_argument(
-        "--is_test", "-it",
-        required=False,
-        default=False,
-        help="'source' or 'sink' to build graph data with source atoms or sink atoms",
-    )
+    # parser.add_argument(
+    #     "--is_test", "-it",
+    #     required=False,
+    #     default=False,
+    #     help="'source' or 'sink' to build graph data with source atoms or sink atoms",
+    # )
     return parser.parse_args()
 
 def main(mol_to_graph, file_input, file_output):
@@ -269,4 +273,4 @@ def main(mol_to_graph, file_input, file_output):
 
 if __name__ == "__main__":
     args = parse_args()
-    main(CSVToGraphs(args.atom_type, args.is_test), args.input, args.output)
+    main(CSVToGraphs(args.atom_type, False), args.input, args.output)

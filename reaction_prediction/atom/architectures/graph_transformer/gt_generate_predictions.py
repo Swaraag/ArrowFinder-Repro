@@ -149,7 +149,7 @@ def run_gt_eval(
                 # Preprocess atoms and features
                 atoms = SAO.atomObjFromReactantSmi(reactants)
                 atoms_oesmiles = [atom.connectedSmiles for atom in atoms]
-                atoms_feature_array = extract_atom_fv_to_numpy_array(atoms_oesmiles, allid_file)
+                #atoms_feature_array = extract_atom_fv_to_numpy_array(atoms_oesmiles, allid_file)
 
                 atoms_smi_dict = {}
                 for smi, atom in zip(atoms_oesmiles, atoms):
@@ -158,9 +158,6 @@ def run_gt_eval(
                         atoms_smi_dict[canon_smi] = [atom]
                     else:
                         atoms_smi_dict[canon_smi].append(atom)
-                for key in atoms_smi_dict:
-                    #print("DICT KEY:", key)
-                    pass
 
                 # given the atom.connectedSmiles, use CSVToGraphs to get graph data associated with that atom
                 source_smiles_to_graph = CSVToGraphs("source")

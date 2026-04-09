@@ -19,7 +19,6 @@ def main(source_test_file_path, sink_test_file_path, source_model_path, sink_mod
     sink_test_objs = torch.load(sink_test_file_path, weights_only=False)
     #print(source_test_objs)
 
-    # SOURCE 
     with open(gt_source_hparams_path, "r") as source_file, open(gt_sink_hparams_path, "r") as sink_file:
         source_hparams = json.load(source_file)
         sink_hparams = json.load(sink_file)
@@ -35,12 +34,12 @@ def main(source_test_file_path, sink_test_file_path, source_model_path, sink_mod
     source_test_reactions = create_test_reactions(source_test_objs)
     sink_test_reactions = create_test_reactions(sink_test_objs)
     
-
+    print(len(source_test_reactions))
     num_correct_topk_source = create_topk(source_test_reactions, source_model, topk)
     for k, k_accuracy in num_correct_topk_source.items():
         print(f"SOURCE: Top-{k} accuracy is {k_accuracy/len(source_test_reactions)}")
 
-    
+    print(len(sink_test_reactions))
     num_correct_topk_sink = create_topk(sink_test_reactions, sink_model, topk)
     for k, k_accuracy in num_correct_topk_sink.items():
         print(f"SINK: Top-{k} accuracy is {k_accuracy/len(sink_test_reactions)}")
@@ -48,7 +47,7 @@ def main(source_test_file_path, sink_test_file_path, source_model_path, sink_mod
 
 def create_topk(test_reactions, model, topk):
     num_correct_topk = {k: 0 for k in range(1, topk+1)}
-    for _, objs in test_reactions.items():
+    for i, objs in test_reactions.items():
         reaction_outputs = dict()
         reaction_real = dict()
         correct_pairs = []
@@ -59,21 +58,23 @@ def create_topk(test_reactions, model, topk):
                                     batch=torch.zeros(len(data_obj.x), dtype=torch.long), 
                                     edge_attr=data_obj.edge_attr,
                                     random_walk=data_obj.random_walk)
-                model_outputs_sigmoid = [torch.sigmoid(output) for output in model_outputs]
+                model_outputs_sigmoid = [torch.sigmoid(output).item() for output in model_outputs]
                 reaction_outputs[obj_index] = model_outputs_sigmoid
                 try:
                     # find the index of 1 in the array of 0s
-                    reaction_real[obj_index] = data_obj.y.argmax().item()
+                    if data_obj.y.sum() != 0:
+                        reaction_real[obj_index] = data_obj.y.argmax().item()
                 except Exception as e:
                     print(e)
                     continue
                 for atom_index, score in enumerate(reaction_outputs[obj_index]):
-                    if atom_index == reaction_real[obj_index]:
+                    if obj_index in reaction_real and atom_index == reaction_real[obj_index]:
                         correct_pairs.append((score, True))
                     else:
                         correct_pairs.append((score, False))
         # correct atom is going to be based on reaction_real
         correct_pairs_sorted = sorted(correct_pairs, reverse=True, key=lambda x: x[0])
+        #print(f"For idx {i}, there are {len(correct_pairs_sorted)} correct pairs sorted preds.")
         for index, score_pair in enumerate(correct_pairs_sorted[:topk]):
             if score_pair[1]:
                 for topk_index in range(index+1, topk+1):
