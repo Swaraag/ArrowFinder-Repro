@@ -4,7 +4,11 @@ import csv
 
 from reaction_prediction.atom.modules.simple_atom_object import SimpleAtomObject as SAO
 from rpCHEM.Common.Util import clearAtomMapsSmiStr
-from rpCHEM.Common.CanonicalAtomMapSmiles import canonicalizeAtomMapSmiString
+
+from openeye.oechem import OEAssignAromaticFlags, OEAroModelMMFF
+from rpCHEM.Common.Util import molBySmiles
+from rpCHEM.Common.CanonicalAtomMapSmiles import canonicalizeAtomMapSmiString, createCanonicalAtomMapSmiString
+from rpCHEM.Common.MolExt import setSingleExplicitHydrogens
 
 def main(source_model_path, sink_model_path, input_file, allid_file, threshold, topk):
 
@@ -18,6 +22,7 @@ def main(source_model_path, sink_model_path, input_file, allid_file, threshold, 
 
     total_source = 0
     total_sink = 0
+    successful_rows = 0
 
     with open(input_file, 'r') as in_f:
         reader = csv.reader(in_f)
@@ -45,31 +50,42 @@ def main(source_model_path, sink_model_path, input_file, allid_file, threshold, 
                 source_sorted = sorted(source_score_dict.items(), key=lambda x: x[1], reverse=True)
                 sink_sorted   = sorted(sink_score_dict.items(),   key=lambda x: x[1], reverse=True)
 
-                true_source = row[2]
-                true_sink = row[3]
+                true_source = molBySmiles(row[2])
+                true_sink = molBySmiles(row[3])
+                setSingleExplicitHydrogens(true_source)
+                setSingleExplicitHydrogens(true_sink)
+                OEAssignAromaticFlags(true_source, OEAroModelMMFF)
+                OEAssignAromaticFlags(true_sink, OEAroModelMMFF)
+
+                true_source = createCanonicalAtomMapSmiString(true_source)
+                true_source = canonicalizeAtomMapSmiString(true_source)
+                true_sink = createCanonicalAtomMapSmiString(true_sink)
+                true_sink = canonicalizeAtomMapSmiString(true_sink)
                 #print(f"For idx {i}, there are {len(source_sorted)} sorted source preds")
 
                 total_source += len(source_sorted)
                 total_sink += len(sink_sorted)
 
                 for index, source in enumerate(source_sorted):
-                    if source[0].connectedSmiles == canonicalizeAtomMapSmiString(true_source):
+                    # print(source[0].connectedSmiles)
+                    # print(canonicalizeAtomMapSmiString(true_source))
+                    if source[0].connectedSmiles == true_source:
                         for topk_index in range(index+1, topk+1):
                             num_correct_topk_source[topk_index] += 1
                         break
 
                 for index, sink in enumerate(sink_sorted):
-                    if sink[0].connectedSmiles == canonicalizeAtomMapSmiString(true_sink):
+                    if sink[0].connectedSmiles == true_sink:
                         for topk_index in range(index+1, topk+1):
                             num_correct_topk_sink[topk_index] += 1
                         break
-
+                successful_rows += 1
             except Exception as e:
                 print(e)
 
             if i and (i % 100 == 0):
                 print(f"{i} reactions processed...")
-    return num_correct_topk_source, num_correct_topk_sink, i + 1
+    return num_correct_topk_source, num_correct_topk_sink, successful_rows
 
 if __name__ == "__main__":
     source_model_path = "output/mc_train_fold0/models/atom/source.h5"
