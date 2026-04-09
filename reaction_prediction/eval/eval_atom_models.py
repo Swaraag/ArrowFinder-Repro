@@ -4,6 +4,7 @@ import csv
 
 from reaction_prediction.atom.modules.simple_atom_object import SimpleAtomObject as SAO
 from rpCHEM.Common.Util import clearAtomMapsSmiStr
+from rpCHEM.Common.CanonicalAtomMapSmiles import canonicalizeAtomMapSmiString
 
 def main(source_model_path, sink_model_path, input_file, allid_file, threshold, topk):
 
@@ -52,13 +53,13 @@ def main(source_model_path, sink_model_path, input_file, allid_file, threshold, 
                 total_sink += len(sink_sorted)
 
                 for index, source in enumerate(source_sorted):
-                    if source[0].connectedNonMappedSmiles == clearAtomMapsSmiStr(true_source):
+                    if source[0].connectedSmiles == canonicalizeAtomMapSmiString(true_source):
                         for topk_index in range(index+1, topk+1):
                             num_correct_topk_source[topk_index] += 1
                         break
 
                 for index, sink in enumerate(sink_sorted):
-                    if sink[0].connectedNonMappedSmiles == clearAtomMapsSmiStr(true_sink):
+                    if sink[0].connectedSmiles == canonicalizeAtomMapSmiString(true_sink):
                         for topk_index in range(index+1, topk+1):
                             num_correct_topk_sink[topk_index] += 1
                         break
