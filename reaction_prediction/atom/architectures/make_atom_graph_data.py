@@ -123,6 +123,9 @@ class CSVToGraphs:
         x = mol.GetAtoms()
 
         y = torch.zeros((len(x)))
+        # resetting any possible atom nums from input data
+        for atom in mol.GetAtoms():
+            atom.SetAtomMapNum(0)
         # for each atom in x
         for idx, atom in enumerate(x):
             # set atom map num to 1
@@ -133,12 +136,12 @@ class CSVToGraphs:
             # print(canon_mol)
             # print(canon_special_atom)
             if canon_mol == canon_special_atom:
-                print(f"Matched! index {idx} with canon_mol = {canon_mol} and canon_s_atom = {canon_special_atom}")
+                #print(f"Matched! index {idx} with canon_mol = {canon_mol} and canon_s_atom = {canon_special_atom}")
                 # if this is the right one, set that index of y to 1
                 y[idx] = 1
             # once youre done set the atom back to 0 to not interfere with future loop iterations
             atom.SetAtomMapNum(0)
-        print(f"Iteration done with {idx} values looped.")
+        #print(f"Iteration done with {idx} values looped.")
         return y
     
     def react_mol_to_graph_data(self, connectedSmiles):
