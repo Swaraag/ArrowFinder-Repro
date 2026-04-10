@@ -63,15 +63,54 @@ def create_topk(test_reactions, model, topk):
                 try:
                     # find the index of 1 in the array of 0s
                     if data_obj.y.sum() != 0:
-                        reaction_real[obj_index] = data_obj.y.argmax().item()
+                        reaction_real[obj_index] = set(data_obj.y.nonzero(as_tuple=True)[0].tolist())
                 except Exception as e:
                     print(e)
                     continue
                 for atom_index, score in enumerate(reaction_outputs[obj_index]):
-                    if obj_index in reaction_real and atom_index == reaction_real[obj_index]:
+                    if obj_index in reaction_real and atom_index in reaction_real[obj_index]:
                         correct_pairs.append((score, True))
                     else:
                         correct_pairs.append((score, False))
+        # correct atom is going to be based on reaction_real
+        correct_pairs_sorted = sorted(correct_pairs, reverse=True, key=lambda x: x[0])
+        #print(f"For idx {i}, there are {len(correct_pairs_sorted)} correct pairs sorted preds.")
+        for index, score_pair in enumerate(correct_pairs_sorted[:topk]):
+            if score_pair[1]:
+                for topk_index in range(index+1, topk+1):
+                    num_correct_topk[topk_index] += 1
+                break
+    return num_correct_topk
+
+
+def create_topk_redone(test_reactions, model, topk):
+    num_correct_topk = {k: 0 for k in range(1, topk+1)}
+    for i, objs in test_reactions.items():
+        max_sym_class_score = {}
+        is_reactive = {}
+
+        for obj_index, data_obj in enumerate(objs):
+            with torch.inference_mode():
+                model_outputs = model(x=data_obj.x,
+                                    edge_index=data_obj.edge_index, 
+                                    batch=torch.zeros(len(data_obj.x), dtype=torch.long), 
+                                    edge_attr=data_obj.edge_attr,
+                                    random_walk=data_obj.random_walk)
+                scores = [torch.sigmoid(output).item() for output in model_outputs]
+            for score, sym, y_label in zip(scores, data_obj.sym_class.tolist(), data_obj.y.tolist()):
+                # unique key because the same sym class can be two diff atoms in two diff molecules
+                key = (obj_index, sym)
+                # updating the newest max symmetry class prediction score
+                if key not in max_sym_class_score or max_sym_class_score[key] < score:
+                    max_sym_class_score[key] = score
+                # if the y label was 1 for any of the values in the sym class, it should be correct
+                if y_label == 1:
+                    is_reactive[key] = True
+        correct_pairs = []
+        for key, score in max_sym_class_score.items():
+            pred_result = False if is_reactive.get(key) is None else True
+            correct_pairs.append((score, pred_result))
+
         # correct atom is going to be based on reaction_real
         correct_pairs_sorted = sorted(correct_pairs, reverse=True, key=lambda x: x[0])
         #print(f"For idx {i}, there are {len(correct_pairs_sorted)} correct pairs sorted preds.")

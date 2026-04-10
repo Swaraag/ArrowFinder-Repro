@@ -108,8 +108,11 @@ class CSVToGraphs:
 
             edge_attr = self.create_edge_attr(edge_index, mol)
 
+            # storing the symmetry classes to deduplicate later at inference
+            sym_class = torch.tensor(list(Chem.CanonicalRankAtoms(mol, breakties=False)), dtype=torch.long)
+
             # reaction id is passed in through process_csv to store which reaction this molecule is part of 
-            data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms(), reaction_id=reaction_id)
+            data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms(), reaction_id=reaction_id, sym_class=sym_class)
             
             # enforces and validates data object, throwing an error if something doesnt line up
             data.validate(raise_on_error=True)
