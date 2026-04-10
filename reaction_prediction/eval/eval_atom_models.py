@@ -3,12 +3,12 @@ from reaction_prediction.eval.generate_predictions import patch_keras_h5_trainin
 import csv
 
 from reaction_prediction.atom.modules.simple_atom_object import SimpleAtomObject as SAO
-from rpCHEM.Common.Util import clearAtomMapsSmiStr
 
-from openeye.oechem import OEAssignAromaticFlags, OEAroModelMMFF
+from openeye.oechem import OEAssignAromaticFlags, OEAroModelMMFF, OEPerceiveChiral
 from rpCHEM.Common.Util import molBySmiles
 from rpCHEM.Common.CanonicalAtomMapSmiles import canonicalizeAtomMapSmiString, createCanonicalAtomMapSmiString
 from rpCHEM.Common.MolExt import setSingleExplicitHydrogens
+from rpCHEM.Common.MolExt import removeNonsenseStereo
 
 def main(source_model_path, sink_model_path, input_file, allid_file, threshold, topk):
 
@@ -50,18 +50,22 @@ def main(source_model_path, sink_model_path, input_file, allid_file, threshold, 
                 source_sorted = sorted(source_score_dict.items(), key=lambda x: x[1], reverse=True)
                 sink_sorted   = sorted(sink_score_dict.items(),   key=lambda x: x[1], reverse=True)
 
+                # these lines below practically jus copy what SAO.atomObjFromReactantSmi does to ensure its in the same format
+                # as the SAO objects to maximize their comparability
                 true_source = molBySmiles(row[2])
                 true_sink = molBySmiles(row[3])
                 setSingleExplicitHydrogens(true_source)
                 setSingleExplicitHydrogens(true_sink)
                 OEAssignAromaticFlags(true_source, OEAroModelMMFF)
                 OEAssignAromaticFlags(true_sink, OEAroModelMMFF)
-
+                OEPerceiveChiral(true_source)
+                removeNonsenseStereo(true_source)
+                OEPerceiveChiral(true_sink)
+                removeNonsenseStereo(true_sink)
                 true_source = createCanonicalAtomMapSmiString(true_source)
                 true_source = canonicalizeAtomMapSmiString(true_source)
                 true_sink = createCanonicalAtomMapSmiString(true_sink)
                 true_sink = canonicalizeAtomMapSmiString(true_sink)
-                #print(f"For idx {i}, there are {len(source_sorted)} sorted source preds")
 
                 total_source += len(source_sorted)
                 total_sink += len(sink_sorted)
