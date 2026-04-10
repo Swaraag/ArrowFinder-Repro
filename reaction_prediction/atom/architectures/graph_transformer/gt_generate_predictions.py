@@ -182,12 +182,12 @@ def run_gt_eval(
                     with torch.inference_mode():
                         source_outputs = source_model(x=source_data_obj.x,
                                                     edge_index=source_data_obj.edge_index, 
-                                                    batch=torch.zeros(len(source_data_obj.x), dtype=torch.long), 
+                                                    batch=torch.zeros(len(source_data_obj.x), dtype=torch.long).to(device), 
                                                     edge_attr=source_data_obj.edge_attr,
                                                     random_walk=source_data_obj.random_walk)
                         sink_outputs = sink_model(x=sink_data_obj.x,
                                                     edge_index=sink_data_obj.edge_index, 
-                                                    batch=torch.zeros(len(sink_data_obj.x), dtype=torch.long), 
+                                                    batch=torch.zeros(len(sink_data_obj.x), dtype=torch.long).to(device), 
                                                     edge_attr=sink_data_obj.edge_attr,
                                                     random_walk=sink_data_obj.random_walk)
                     
