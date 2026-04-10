@@ -85,11 +85,11 @@ def create_topk(test_reactions, model, topk, device):
 
 
 if __name__ == "__main__":
-    source_test_file_path = "output/mc_train_fold0/graph_data/source_unfiltered/test.pt"
-    sink_test_file_path = "output/mc_train_fold0/graph_data/sink_unfiltered/test.pt"
-    source_model_path = "output/mc_train_fold0/models/graph_transformer_unfiltered/source.pt"
-    sink_model_path = "output/mc_train_fold0/models/graph_transformer_unfiltered/sink.pt"
-    gt_source_hparams_path = "output/mc_train_fold0/models/graph_transformer_unfiltered/source_plots/config_used.json"
-    gt_sink_hparams_path = "output/mc_train_fold0/models/graph_transformer_unfiltered/sink_plots/config_used.json"
+    source_test_file_path = "output/mc_train_fold0/graph_data/source/test.pt"
+    sink_test_file_path = "output/mc_train_fold0/graph_data/sink/test.pt"
+    source_model_path = "output/mc_train_fold0/models/graph_transformer/source.pt"
+    sink_model_path = "output/mc_train_fold0/models/graph_transformer/sink.pt"
+    gt_source_hparams_path = "output/mc_train_fold0/models/graph_transformer/source_plots/config_used.json"
+    gt_sink_hparams_path = "output/mc_train_fold0/models/graph_transformer/sink_plots/config_used.json"
     topk = 10
     main(source_test_file_path, sink_test_file_path, source_model_path, sink_model_path, gt_source_hparams_path, gt_sink_hparams_path, topk)
