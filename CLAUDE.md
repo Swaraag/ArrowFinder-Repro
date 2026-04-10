@@ -1,5 +1,7 @@
 # ArrowFinder-Repro: Full Project Context
 
+VERY IMPORTANT: When an explanation can be given but with less output tokens, prefer the explanation with less output tokens, whether that be a more concise explanation, less rambling, or more concentration on balancing being super informative and explanatory while being as concise as that allows. In essense, SAVE OUTPUT TOKENS WHENEVER AND WHEREVER YOU CAN WHILE ALSO OBVIOUSLY MAXIMIZING YOUR OWN INTERNAL REASONING CAPABILITIES GIVEN THAT CONSTRAINT.
+
 ## Project Overview
 This is a fork of ArrowFinder (rjmille3/ArrowFinder), a two-stage pipeline for polar organic reaction mechanism prediction, described in a JACS 2025 paper by Miller et al. The active repo is Swaraag/ArrowFinder-Repro on the `experiments` branch.
 

@@ -1,10 +1,10 @@
 {
-  "num_hidden_layers": 2,
+  "num_hidden_layers": 3,
   "hidden_dim": 64,
   "dropout": 0.1,
   "lr": 5e-05,
   "weight_decay": 0.03,
-  "epochs": 100,
+  "epochs": 200,
   "batch_size": 64,
   "walk_length": 20,
   "heads": 4,
