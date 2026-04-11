@@ -9,7 +9,7 @@ from torch.nn.functional import one_hot
 import argparse
 
 class CSVToGraphs:
-    def __init__(self, atom_type, is_test):
+    def __init__(self, atom_type, is_test=False):
         # either source or sink
         if atom_type == 'source' or atom_type == 'sink':
             self._atom_type_str = atom_type
@@ -154,14 +154,15 @@ class CSVToGraphs:
             x = self.create_x(atoms)
             edge_index = self.create_edge_index(mol)
 
-            # skip molecules entirely if they have no edges, bc not much for GT to reason about
             if edge_index.shape[1] == 0:
-                print("No edge features.")
-                return None
+                edge_index = torch.empty((2,0), dtype=torch.long)
 
             edge_attr = self.create_edge_attr(edge_index, mol)
 
-            data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms())
+            # storing the symmetry classes to deduplicate later at inference
+            sym_class = torch.tensor(list(Chem.CanonicalRankAtoms(mol, breakTies=False, includeChirality=False)), dtype=torch.long)
+
+            data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, num_nodes=mol.GetNumAtoms(), sym_class=sym_class)
             
             # enforces and validates data object, throwing an error if something doesnt line up
             data.validate(raise_on_error=True)
