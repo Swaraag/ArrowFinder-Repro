@@ -31,7 +31,8 @@ from reaction_prediction.atom.architectures.graph_transformer.graph_transformer 
 from reaction_prediction.atom.architectures.make_atom_graph_data import CSVToGraphs
 import torch
 import json
-from torch_geometric.data import DataLoader
+
+import traceback
 
 # ---------------------------
 # Utilities
@@ -69,6 +70,47 @@ def extract_single_op_fv_to_list(op, allid_file):
     rfe = RFE(morgan_radi=2, morgan_bits=2048, atom_length=3, allid_file=allid_file)
     return rfe.extract_rxn_rep(op.reactionSmiles, op.srcAtom.connectedSmiles, op.sinkAtom.connectedSmiles)
 
+def run_gt_models(source_data_obj, source_model, sink_data_obj, sink_model, device):
+    with torch.inference_mode():
+        source_outputs = source_model(x=source_data_obj.x,
+                                    edge_index=source_data_obj.edge_index, 
+                                    batch=torch.zeros(len(source_data_obj.x), dtype=torch.long).to(device), 
+                                    edge_attr=source_data_obj.edge_attr,
+                                    random_walk=source_data_obj.random_walk)
+        sink_outputs = sink_model(x=sink_data_obj.x,
+                                    edge_index=sink_data_obj.edge_index, 
+                                    batch=torch.zeros(len(sink_data_obj.x), dtype=torch.long).to(device), 
+                                    edge_attr=sink_data_obj.edge_attr,
+                                    random_walk=sink_data_obj.random_walk)
+    source_outputs = [torch.sigmoid(output).item() for output in source_outputs]
+    sink_outputs = [torch.sigmoid(output).item() for output in sink_outputs]
+    return source_outputs, sink_outputs
+
+def create_sym_class_dict(model_outputs, data_obj, rdk_atoms, mol_index):
+    sym_outputs = {}
+
+    for score, sym, atom in zip(model_outputs, data_obj.sym_class.tolist(), rdk_atoms):
+        # unique key because the same sym class can be two diff atoms in two diff molecules
+        key = (mol_index, sym)
+        if key not in sym_outputs or sym_outputs[key][1] < score:
+            sym_outputs[key] = (atom, score)
+    return sym_outputs
+
+def update_score_lists(sym_outputs, mol, sao_atoms, scores):
+    for _, value in sym_outputs.items():
+        # value[0] = rdk atom, value[1] = score
+        rdk_atom, score = value
+        rdk_atom.SetAtomMapNum(1)
+        canon_rdk_mol = Chem.MolToSmiles(mol)
+        for sao_atom in sao_atoms:
+            sao_mol = mol_with_hydrogens(sao_atom.connectedSmiles)
+            canon_sao_mol = Chem.MolToSmiles(sao_mol)
+            print(f"Canon RDK mol: {canon_rdk_mol}")
+            print(f"Canon SAO mol: {canon_sao_mol}")
+            if canon_rdk_mol == canon_sao_mol:
+                scores.append((sao_atom, score))
+        rdk_atom.SetAtomMapNum(0)
+    return scores
 # ---------------------------
 # Core eval
 # ---------------------------
@@ -147,87 +189,93 @@ def run_gt_eval(
                 # arrows = rxn_full.split(" ")[1].strip().rstrip(",")
 
                 # Preprocess atoms and features
-                atoms = SAO.atomObjFromReactantSmi(reactants)
-                atoms_oesmiles = [atom.connectedSmiles for atom in atoms]
-                #atoms_feature_array = extract_atom_fv_to_numpy_array(atoms_oesmiles, allid_file)
+                sao_atoms = SAO.atomObjFromReactantSmi(reactants)
+                atoms_oesmiles = [atom.connectedSmiles for atom in sao_atoms]
 
-                atoms_smi_dict = {}
-                for smi, atom in zip(atoms_oesmiles, atoms):
-                    canon_smi = Chem.MolToSmiles(mol_with_hydrogens(smi))
-                    if atoms_smi_dict.get(canon_smi) is None:
-                        atoms_smi_dict[canon_smi] = [atom]
-                    else:
-                        atoms_smi_dict[canon_smi].append(atom)
+                # atoms_smi_dict = {}
+                # for smi, atom in zip(atoms_oesmiles, atoms):
+                #     canon_smi = Chem.MolToSmiles(mol_with_hydrogens(smi))
+                #     if atoms_smi_dict.get(canon_smi) is None:
+                #         atoms_smi_dict[canon_smi] = [atom]
+                #     else:
+                #         atoms_smi_dict[canon_smi].append(atom)
 
                 # given the atom.connectedSmiles, use CSVToGraphs to get graph data associated with that atom
                 source_smiles_to_graph = CSVToGraphs("source")
                 sink_smiles_to_graph = CSVToGraphs("sink")
                 
                 source_scores, sink_scores = [], []
-                source_score_dict = dict()
-                sink_score_dict = dict()
-
-                for react_mol in reactants.split("."):
+                for mol_index, react_mol in enumerate(reactants.split(".")):
+                    mol = mol_with_hydrogens(react_mol)
+                    rdk_atoms = list(mol.GetAtoms())
                     # building a graph on the fly for both source and sink
                     source_data_obj = source_smiles_to_graph.react_mol_to_graph_data(react_mol)
                     sink_data_obj = sink_smiles_to_graph.react_mol_to_graph_data(react_mol)
 
                     # in case there are no edge features, or another error is thrown during conversion, these objs will return None
                     if source_data_obj is None or sink_data_obj is None:
-                        #print("Continue")
-                        source_scores.append(0.0)
-                        sink_scores.append(0.0)
+                        for sao_atom in sao_atoms:
+                            # bit of a hack fix, but theoreitically OrbChain should never even get here in the first place
+                            source_scores.append((sao_atom, 0.0))
+                            sink_scores.append((sao_atom, 0.0))
                         continue
-                    
-                    with torch.inference_mode():
-                        source_outputs = source_model(x=source_data_obj.x,
-                                                    edge_index=source_data_obj.edge_index, 
-                                                    batch=torch.zeros(len(source_data_obj.x), dtype=torch.long).to(device), 
-                                                    edge_attr=source_data_obj.edge_attr,
-                                                    random_walk=source_data_obj.random_walk)
-                        sink_outputs = sink_model(x=sink_data_obj.x,
-                                                    edge_index=sink_data_obj.edge_index, 
-                                                    batch=torch.zeros(len(sink_data_obj.x), dtype=torch.long).to(device), 
-                                                    edge_attr=sink_data_obj.edge_attr,
-                                                    random_walk=sink_data_obj.random_walk)
-                    
-                    mol = mol_with_hydrogens(react_mol)
-                    # resetting any possible atom nums from input data
-                    for atom in mol.GetAtoms():
-                        atom.SetAtomMapNum(0)
 
-                    for idx, atom in enumerate(mol.GetAtoms()):
-                        # set atom map num to 1
-                        atom.SetAtomMapNum(1)
-                        # canonicalize it
-                        canon_mol = Chem.MolToSmiles(mol)
-                        #print("LOOKUP:", canon_mol)
-                        # check it as a key against atoms_smi_dict to see if there is corresponding atom
-                        if atoms_smi_dict.get(canon_mol) is not None:
-                            for sao_atom in atoms_smi_dict[canon_mol]:
-                                try:
-                                    # the models currently output raw nums, so need to apply sigmoid
-                                    source_score_dict[sao_atom] = torch.sigmoid(source_outputs[idx])
-                                    sink_score_dict[sao_atom] = torch.sigmoid(sink_outputs[idx])  
-                                except:
-                                    raise Exception(f"An error has occured with atom {atom}, index {idx}, source outputs {source_outputs}, and sink outputs {sink_outputs}")
-                        # once youre done set the atom back to 0 to not interfere with future loop iterations
-                        atom.SetAtomMapNum(0)
+                    source_outputs, sink_outputs = run_gt_models(source_data_obj, source_model, sink_data_obj, sink_model, device)
+
+                    # outputs (mol_index, sym) -> (atom, score)
+                    source_sym_outputs = create_sym_class_dict(source_outputs, source_data_obj, rdk_atoms, mol_index)
+                    sink_sym_outputs = create_sym_class_dict(sink_outputs, sink_data_obj, rdk_atoms, mol_index)
+                
+                    source_scores = update_score_lists(source_sym_outputs, mol, sao_atoms, source_scores)
+                    sink_scores = update_score_lists(sink_sym_outputs, mol, sao_atoms, sink_scores)
+
+                    # for source_prob, sink_prob, atom in zip(source_outputs, sink_outputs, rdk_atoms):
+
+                    #     source_scores.append((atom, source_prob))
+                    #     sink_scores.append((atom, sink_prob))
+
+                    
+                    # mol = mol_with_hydrogens(react_mol)
+                    # # resetting any possible atom nums from input data
+                    # for atom in mol.GetAtoms():
+                    #     atom.SetAtomMapNum(0)
+
+                    # for idx, atom in enumerate(mol.GetAtoms()):
+                    #     # set atom map num to 1
+                    #     atom.SetAtomMapNum(1)
+                    #     # canonicalize it
+                    #     canon_mol = Chem.MolToSmiles(mol)
+                    #     #print("LOOKUP:", canon_mol)
+                    #     # check it as a key against atoms_smi_dict to see if there is corresponding atom
+                    #     if atoms_smi_dict.get(canon_mol) is not None:
+                    #         for sao_atom in atoms_smi_dict[canon_mol]:
+                    #             try:
+                    #                 # the models currently output raw nums, so need to apply sigmoid
+                    #                 source_score_dict[sao_atom] = torch.sigmoid(source_outputs[idx])
+                    #                 sink_score_dict[sao_atom] = torch.sigmoid(sink_outputs[idx])  
+                    #             except:
+                    #                 raise Exception(f"An error has occured with atom {atom}, index {idx}, source outputs {source_outputs}, and sink outputs {sink_outputs}")
+                    #     # once youre done set the atom back to 0 to not interfere with future loop iterations
+                    #     atom.SetAtomMapNum(0)
 
                 
-                for idx, atom in enumerate(atoms):
-                    if source_score_dict.get(atom) is None:
-                        source_score_dict[atom] = 0.0
-                    if sink_score_dict.get(atom) is None:
-                        sink_score_dict[atom] = torch.sigmoid(sink_outputs[idx])
+                # for idx, atom in enumerate(atoms):
+                #     if source_score_dict.get(atom) is None:
+                #         source_score_dict[atom] = 0.0
+                #     if sink_score_dict.get(atom) is None:
+                #         sink_score_dict[atom] = torch.sigmoid(sink_outputs[idx])
                 
-                source_sorted = sorted(source_score_dict.items(), key=lambda x: x[1], reverse=True)
-                sink_sorted   = sorted(sink_score_dict.items(),   key=lambda x: x[1], reverse=True)
+                # source_sorted = sorted(source_score_dict.items(), key=lambda x: x[1], reverse=True)
+                # sink_sorted   = sorted(sink_score_dict.items(),   key=lambda x: x[1], reverse=True)
+                source_sorted = sorted(source_scores, key=lambda x: x[1], reverse=True)
+                sink_sorted   = sorted(sink_scores,   key=lambda x: x[1], reverse=True)
 
                 source_list = [a for a, s in source_sorted if s > threshold] or [source_sorted[0][0]]
                 sink_list   = [a for a, s in sink_sorted   if s > threshold] or [sink_sorted[0][0]]
 
                 if i < 20:
+                    print(len(source_scores))
+                    print(len(list(sao_atoms)))
                     # print("Rxn full is", rxn_full)
                     # print("Source score dict is: ", source_score_dict)
                     # print("Sink score dict is ", sink_score_dict)
@@ -272,6 +320,7 @@ def run_gt_eval(
 
             except Exception as e:
                 print(e)
+                traceback.print_exc()
                 # On any failure: write BLANK lines to preds & preds_reversed,
                 # and log the failure to bad.csv with error info
                 preds_writer.writerow([])        # blank line

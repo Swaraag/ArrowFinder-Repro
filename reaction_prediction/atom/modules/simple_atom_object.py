@@ -45,7 +45,7 @@ class SimpleAtomObject(object):
         self.atom.SetMapIdx(0)
         self.connectedSmiles = getAtmMappedSmilesFromCompositeSmiles(self.fullSmiles, clearMaps=False)
         self.connectedSmiles = canonicalizeAtomMapSmiString(self.connectedSmiles)
-        self.connectedNonMappedSmiles = clearAtomMapsSmiStr(self.connectedSmiles);
+        self.connectedNonMappedSmiles = clearAtomMapsSmiStr(self.connectedSmiles)
         self.connectedKekuleSmiles = canonicalKekule(self.connectedSmiles)
         
         # Eventual ML stuff
