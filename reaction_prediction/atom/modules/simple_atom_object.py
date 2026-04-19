@@ -7,7 +7,7 @@ File: simple_atom_object.py
 Author: Amin.T
 
 """
-import sys,os
+#import sys,os
 from reaction_prediction.atom.utils import *
 
 from rpCHEM.Common.Util import splitCompositeSmilesToList, molBySmiles
@@ -15,7 +15,7 @@ from rpCHEM.Common.Util import joinSmilesListToCompositeSmiles
 from openeye.oechem import OEAssignAromaticFlags, OEAroModelMMFF, OEClearAromaticFlags
 from openeye.oechem import OEPerceiveChiral, OEPerceiveSymmetry
 from openeye.oechem import OEFindRingAtomsAndBonds
-from rpCHEM.Common.Util import standardizeSmiles
+#from rpCHEM.Common.Util import standardizeSmiles
 from rpCHEM.Common.Util import createStdAtomMapSmiString, clearAtomMapsSmiStr
 from rpCHEM.Common.CanonicalAtomMapSmiles import canonicalizeAtomMapSmiString, createCanonicalAtomMapSmiString
 from rpCHEM.Common.MolExt import clearAtomMaps, removeNonsenseStereo

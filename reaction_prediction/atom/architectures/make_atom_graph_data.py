@@ -1,7 +1,7 @@
 # Utils file for converting raw CSV file into a list of molecule graphs
 import csv
 from torch_geometric.data import Data
-from reaction_prediction.atom.utils import label_each_atom, mol_with_hydrogens
+from reaction_prediction.atom.utils import mol_with_hydrogens
 from rdkit import Chem
 import torch
 from torch_geometric.transforms import AddRandomWalkPE

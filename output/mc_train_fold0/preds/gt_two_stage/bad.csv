@@ -1,1 +1,5 @@
 index,reaction_line,error_type,error_message
+1329,CC1=C(C=C(C=C1)C(C)C)O.CCO.NC2=CC=CC(N)=N2.OC3=CC=CC(Cl)=C3Cl.[OH2+][Na].O.[Na+][C-:20]([Cl:21])(Cl)Cl>>CC1=C(C=C(C=C1)C(C)C)O.CCO.NC2=CC=CC(N)=N2.OC3=CC=CC(Cl)=C3Cl.[OH2+][Na].O.[Na+].[C:20](Cl)Cl.[Cl-:21],ArgumentError,"Python argument types in
+    rdkit.Chem.rdmolops.AddHs(NoneType)
+did not match C++ signature:
+    AddHs(RDKit::ROMol mol, bool explicitOnly=False, bool addCoords=False, boost::python::api::object onlyOnAtoms=None, bool addResidueInfo=False)"
