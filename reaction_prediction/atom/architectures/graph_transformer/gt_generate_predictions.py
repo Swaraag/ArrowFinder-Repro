@@ -104,20 +104,7 @@ def update_score_lists(sym_outputs, mol, scores, sao_dict):
             missed_tags.append(tagged)
     return scores, missed_tags
 
-    # for _, value in sym_outputs.items():
-    #     # value[0] = rdk atom, value[1] = score
-    #     rdk_atom, score = value
-    #     rdk_atom.SetAtomMapNum(1)
-    #     canon_rdk_mol = Chem.MolToSmiles(mol)
-    #     for sao_atom in sao_atoms:
-    #         sao_mol = mol_with_hydrogens(sao_atom.connectedSmiles)
-    #         canon_sao_mol = Chem.MolToSmiles(sao_mol)
-    #         print(f"Canon RDK mol: {canon_rdk_mol}")
-    #         print(f"Canon SAO mol: {canon_sao_mol}")
-    #         if canon_rdk_mol == canon_sao_mol:
-    #             scores.append((sao_atom, score))
-    #     rdk_atom.SetAtomMapNum(0)
-    # return scores
+
 # ---------------------------
 # Core eval
 # ---------------------------
@@ -252,15 +239,6 @@ def run_gt_eval(
                 # sink_list   = [a for a, _ in sink_sorted[:5]] 
                 source_list = [a for a, s in source_sorted if s > threshold] or [source_sorted[0][0]]
                 sink_list   = [a for a, s in sink_sorted   if s > threshold] or [sink_sorted[0][0]]
-
-                # if i < 20:
-                #     atched_source_ids = {id(sao) for sao, sc in source_scores if sc > 0}
-                #     for sao in sao_atoms:                                                                                                       
-                #         if id(sao) not in matched_source_ids:
-                #             sao_key = Chem.MolToSmiles(mol_with_hydrogens(sao.connectedSmiles))                                                 
-                #             print(f"  UNMATCHED SAO key: {sao_key}")                                                                            
-                #     for tag in all_src_missed:                                                                                                  
-                #         print(f"  MISSED RDK tag:   {tag}")
 
                 # Build orbital pairs and rank
                 ops = SOO.orbPairObjectsFromAtoms_bounded(source_list, sink_list, max_orbs=max_orbs)
