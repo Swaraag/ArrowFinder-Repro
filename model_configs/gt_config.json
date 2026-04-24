@@ -1,0 +1,14 @@
+{
+    "num_hidden_layers": 3,
+    "hidden_dim": 64,
+    "dropout": 0.1,
+    "lr": 5e-5,
+    "weight_decay": 0.03,
+    "epochs": 200,
+    "batch_size": 64,
+    "walk_length": 20,
+    "heads": 4,
+    "num_node_features": 47,
+    "num_edge_features": 3,
+    "patience": 20
+}

@@ -1,5 +1,8 @@
 *.pyc
 *.hdf5
 *.h5
+*.pt
 *.vscode
 *_allids.json
+.DS_Store
+oe_license.txt-2026

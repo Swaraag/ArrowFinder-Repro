@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# SINK
+python reaction_prediction/atom/architectures/graph_transformer/train_graph_transformer.py \
+  --model_config_file_path model_configs/gt_config.json \
+  --train_file_path output/mc_train_fold0/graph_data/sink/train.pt \
+  --val_file_path output/mc_train_fold0/graph_data/sink/val.pt \
+  --history_output_dir output/mc_train_fold0/models/graph_transformer/sink_plots \
+  --model_output_file_path output/mc_train_fold0/models/graph_transformer/sink.pt 2>&1 | tee output/mc_train_fold0/models/graph_transformer/sink_plots/training_log.txt
+# last line saves the output (model logger info) to a txt file for later looking
